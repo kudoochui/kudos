@@ -23,6 +23,8 @@ kudos是一款基于微服务架构的简洁，高性能，易扩展，易部署
 功能持续开发中
 
 ## 交流
+[wiki](https://github.com/kudoochui/kudos/wiki)
+
 QQ交流群：77584553
 
 ## 证书
