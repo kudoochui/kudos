@@ -1,8 +1,8 @@
 package json
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/json-iterator/go"
 	"github.com/kudoochui/kudos/log"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/msgService"
@@ -28,6 +28,7 @@ func (p *JsonCodec) Unmarshal(route uint16, data []byte) (interface{}, error) {
 	call := new(rpc.Call)
 	call.MsgReq = reflect.New(i.MsgReqType.Elem()).Interface()
 	call.MsgResp = reflect.New(i.MsgRespType.Elem()).Interface()
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	err := json.Unmarshal(data, call.MsgReq)
 	if err != nil {
 		return nil, err
@@ -49,6 +50,7 @@ func (p *JsonCodec) Marshal(msg interface{}) ([]byte, error) {
 	//	return nil, errors.New("json message pointer required")
 	//}
 
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	data, err := json.Marshal(msg)
 	return data, err
 }
