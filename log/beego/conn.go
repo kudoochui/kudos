@@ -63,12 +63,8 @@ func (c *connWriter) WriteMsg(when time.Time, msg string, level int) error {
 		defer c.innerWriter.Close()
 	}
 
-	c.lg.println(when, msg)
+	c.lg.writeln(when, msg)
 	return nil
-}
-
-func (c *connWriter) WriteOriginalMsg(when time.Time, msg string, level int) error {
-	return c.WriteMsg(when, msg, level)
 }
 
 // Flush implementing method. empty.

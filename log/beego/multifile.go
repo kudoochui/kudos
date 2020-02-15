@@ -67,7 +67,10 @@ func (f *multiFileLogWriter) Init(config string) error {
 				jsonMap["level"] = i
 				bs, _ := json.Marshal(jsonMap)
 				writer = newFileWriter().(*fileLogWriter)
-				writer.Init(string(bs))
+				err := writer.Init(string(bs))
+				if err != nil {
+					return err
+				}
 				f.writers[i] = writer
 			}
 		}
@@ -92,20 +95,6 @@ func (f *multiFileLogWriter) WriteMsg(when time.Time, msg string, level int) err
 		if f.writers[i] != nil {
 			if level == f.writers[i].Level {
 				f.writers[i].WriteMsg(when, msg, level)
-			}
-		}
-	}
-	return nil
-}
-
-func (f *multiFileLogWriter) WriteOriginalMsg(when time.Time, msg string, level int) error {
-	if f.fullLogWriter != nil {
-		f.fullLogWriter.WriteOriginalMsg(when, msg, level)
-	}
-	for i := 0; i < len(f.writers)-1; i++ {
-		if f.writers[i] != nil {
-			if level == f.writers[i].Level {
-				f.writers[i].WriteOriginalMsg(when, msg, level)
 			}
 		}
 	}

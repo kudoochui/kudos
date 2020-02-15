@@ -19,15 +19,8 @@ import (
 )
 
 var beego *beegolog.BeeLogger
-var bi *beegolog.BeeLogger
 var once sync.Once
 
-func InitLog(debug bool, ProcessID string, Logdir string, settings map[string]interface{}) {
-	beego = NewBeegoLogger(debug, ProcessID, Logdir, settings)
-}
-func InitBI(debug bool, ProcessID string, Logdir string, settings map[string]interface{}) {
-	bi = NewBeegoLogger(debug, ProcessID, Logdir, settings)
-}
 func LogBeego() *beegolog.BeeLogger {
 	once.Do(func() {
 		beego = beegolog.NewLogger()
@@ -35,98 +28,43 @@ func LogBeego() *beegolog.BeeLogger {
 	return beego
 }
 
-func BiBeego() *beegolog.BeeLogger {
-	return bi
+
+// Emergency logs a message at emergency level.
+func Emergency(f interface{}, v ...interface{}) {
+	LogBeego().Emergency(beegolog.FormatLog(f, v...))
 }
 
-//func CreateRootTrace() TraceSpan {
-//	return &TraceSpanImp{
-//		Trace: utils.GenerateID().String(),
-//		Span:  utils.GenerateID().String(),
-//	}
-//}
-
-func CreateTrace(trace, span string) TraceSpan {
-	return &TraceSpanImp{
-		Trace: trace,
-		Span:  span,
-	}
+// Alert logs a message at alert level.
+func Alert(f interface{}, v ...interface{}) {
+	LogBeego().Alert(beegolog.FormatLog(f, v...))
 }
 
-func BiReport(msg string) {
-	//gLogger.doPrintf(debugLevel, printDebugLevel, format, a...)
-	l := BiBeego()
-	if l != nil {
-		l.BiReport(msg)
-	}
+// Critical logs a message at critical level.
+func Critical(f interface{}, v ...interface{}) {
+	LogBeego().Critical(beegolog.FormatLog(f, v...))
 }
 
-func Debug(format string, a ...interface{}) {
-	//gLogger.doPrintf(debugLevel, printDebugLevel, format, a...)
-	LogBeego().Debug(nil, format, a...)
-}
-func Info(format string, a ...interface{}) {
-	//gLogger.doPrintf(releaseLevel, printReleaseLevel, format, a...)
-	LogBeego().Info(nil, format, a...)
+// Error logs a message at error level.
+func Error(f interface{}, v ...interface{}) {
+	LogBeego().Error(beegolog.FormatLog(f, v...))
 }
 
-func Error(format string, a ...interface{}) {
-	//gLogger.doPrintf(errorLevel, printErrorLevel, format, a...)
-	LogBeego().Error(nil, format, a...)
+// Warning logs a message at warning level.
+func Warning(f interface{}, v ...interface{}) {
+	LogBeego().Warn(beegolog.FormatLog(f, v...))
 }
 
-func Warning(format string, a ...interface{}) {
-	//gLogger.doPrintf(fatalLevel, printFatalLevel, format, a...)
-	LogBeego().Warning(nil, format, a...)
+// Notice logs a message at notice level.
+func Notice(f interface{}, v ...interface{}) {
+	LogBeego().Notice(beegolog.FormatLog(f, v...))
 }
 
-func TDebug(span TraceSpan, format string, a ...interface{}) {
-	if span != nil {
-		LogBeego().Debug(
-			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
-			}, format, a...)
-	} else {
-		LogBeego().Debug(nil, format, a...)
-	}
-}
-func TInfo(span TraceSpan, format string, a ...interface{}) {
-	if span != nil {
-		LogBeego().Info(
-			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
-			}, format, a...)
-	} else {
-		LogBeego().Info(nil, format, a...)
-	}
+// Info compatibility alias for Warning()
+func Info(f interface{}, v ...interface{}) {
+	LogBeego().Info(beegolog.FormatLog(f, v...))
 }
 
-func TError(span TraceSpan, format string, a ...interface{}) {
-	if span != nil {
-		LogBeego().Error(
-			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
-			}, format, a...)
-	} else {
-		LogBeego().Error(nil, format, a...)
-	}
-}
-
-func TWarning(span TraceSpan, format string, a ...interface{}) {
-	if span != nil {
-		LogBeego().Warning(
-			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
-			}, format, a...)
-	} else {
-		LogBeego().Warning(nil, format, a...)
-	}
-}
-
-func Close() {
-	LogBeego().Close()
+// Debug logs a message at debug level.
+func Debug(f interface{}, v ...interface{}) {
+	LogBeego().Debug(beegolog.FormatLog(f, v...))
 }

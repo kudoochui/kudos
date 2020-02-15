@@ -59,10 +59,6 @@ func (s *JLWriter) WriteMsg(when time.Time, msg string, level int) error {
 	return nil
 }
 
-func (s *JLWriter) WriteOriginalMsg(when time.Time, msg string, level int) error {
-	return s.WriteMsg(when, msg, level)
-}
-
 // Flush implementing method. empty.
 func (s *JLWriter) Flush() {
 }

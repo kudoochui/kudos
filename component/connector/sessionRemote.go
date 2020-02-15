@@ -58,6 +58,7 @@ func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rp
 	agent,err := s.connector.sessions.GetAgent(sessioinId)
 	if err != nil {
 		log.Error("SessionService can't find session:%s", sessioinId)
+		return err
 	}
 	reason := args.MsgReq.(string)
 	ret := map[string]string{

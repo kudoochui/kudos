@@ -39,8 +39,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/astaxie/beego/config"
 	"github.com/beego/x2j"
+	"github.com/kudoochui/kudos/config"
 )
 
 // Config is a xml config parser and implements Config interface.

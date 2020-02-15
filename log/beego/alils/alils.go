@@ -105,7 +105,7 @@ func (c *aliLSWriter) Init(jsonConfig string) (err error) {
 // if connection is down, try to re-connect.
 func (c *aliLSWriter) WriteMsg(when time.Time, msg string, level int) (err error) {
 
-	if level < c.Level {
+	if level > c.Level {
 		return nil
 	}
 
@@ -154,10 +154,6 @@ func (c *aliLSWriter) WriteMsg(when time.Time, msg string, level int) (err error
 	}
 
 	return nil
-}
-
-func (s *aliLSWriter) WriteOriginalMsg(when time.Time, msg string, level int) error {
-	return s.WriteMsg(when, msg, level)
 }
 
 // Flush implementing method. empty.

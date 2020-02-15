@@ -34,12 +34,12 @@
 package logs
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -71,7 +71,6 @@ const (
 	AdapterEs        = "es"
 	AdapterJianLiao  = "jianliao"
 	AdapterSlack     = "slack"
-	AdapterDingtalk  = "dingtalk"
 	AdapterAliLS     = "alils"
 )
 
@@ -82,38 +81,18 @@ const (
 	LevelWarn  = LevelWarning
 )
 
-type JsonStruct struct {
-	FormatTime   	string `json:"formattime"`
-	TimeStamp   	int64 `json:"timestamp"`
-	EventId   		string `json:"event_id"`
-	SubEventId   	interface{} `json:"sub_event_id,omitempty"`
-	ErrorMsg   		interface{} `json:"error_msg,omitempty"`
-	ErrorReport   	interface{} `json:"error_report,omitempty"`
-	EventParams   	interface{} `json:"event_params,omitempty"`
-	Rparam   		interface{} `json:"rparam,omitempty"`
-	ContextParam   	interface{} `json:"context_param,omitempty"`
-	Message   		string `json:"message"`
-	File   			string `json:"file"`
-	Stack   		string `json:"stack"`
-	ProcessId   	string `json:"processid"`
-	Level   		string `json:"level"`
-	TraceId   		string `json:"trace_id"`
-	TraceSpan   	string `json:"trace_span"`
-}
-
 type newLoggerFunc func() Logger
 
 // Logger defines the behavior of a log provider.
 type Logger interface {
 	Init(config string) error
 	WriteMsg(when time.Time, msg string, level int) error
-	WriteOriginalMsg(when time.Time, msg string, level int) error
 	Destroy()
 	Flush()
 }
 
 var adapters = make(map[string]newLoggerFunc)
-var LevelPrefix = [LevelDebug + 1]string{"[M] ", "[A] ", "[C] ", "[E] ", "[W] ", "[N] ", "[I] ", "[D] "}
+var levelPrefix = [LevelDebug + 1]string{"[M]", "[A]", "[C]", "[E]", "[W]", "[N]", "[I]", "[D]"}
 
 // Register makes a log provide available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
@@ -128,94 +107,6 @@ func Register(name string, log newLoggerFunc) {
 	adapters[name] = log
 }
 
-type FormatFunc func(when time.Time, span *BeegoTraceSpan, logLevel int, msg string, v ...interface{}) (string, error)
-
-func DefineErrorLogFunc(processId string,loggerFuncCallDepth int) FormatFunc {
-	return func(when time.Time, span *BeegoTraceSpan, logLevel int, msg string, v ...interface{}) (s string, e error) {
-		h, _ := FormatTimeHeader(when)
-		msgstruct:=&JsonStruct{}
-		msgstruct.FormatTime=string(h)
-		msgstruct.TimeStamp=when.UnixNano()
-		//msgjson := map[string]interface{}{
-		//	"formattime": string(h),
-		//	"timestamp":  when.UnixNano(),
-		//}
-		if strings.HasPrefix(msg,"@"){
-			//代表是结构化日志  msg=event_id  可选 v0=sub_event_id v1=error_msg v2=error_report v3=event_params[map,struct] v4=rparam[map,struct] v5=context_param[map,struct]
-			//msgjson["event_id"]=msg
-			msgstruct.EventId=msg
-			if len(v) > 0 {
-				//msgjson["sub_event_id"]=v[0]
-				msgstruct.SubEventId=v[0]
-			}
-			if len(v) > 1 {
-				//msgjson["error_msg"]=v[1]
-				msgstruct.ErrorMsg=v[1]
-			}
-			if len(v) > 2 {
-				//msgjson["error_report"]=v[2]
-				msgstruct.ErrorReport=v[2]
-			}
-			if len(v) > 3 {
-				//msgjson["event_params"]=v[3]
-				msgstruct.EventParams=v[3]
-			}
-			if len(v) > 4 {
-				//msgjson["rparam"]=v[4]
-				msgstruct.Rparam=v[4]
-			}
-			if len(v) > 5 {
-				//msgjson["context_param"]=v[5]
-				msgstruct.ContextParam=v[5]
-			}
-		}else{
-			if len(v) > 0 {
-				msg = fmt.Sprintf(msg, v...)
-			}
-			//msgjson["message"]=msg
-			msgstruct.Message=msg
-		}
-		if logLevel <= LevelWarn {
-			CallStack, ShortFile := GetCallStack(5, loggerFuncCallDepth, "")
-			//msgjson["file"] = ShortFile
-			//msgjson["stack"] = CallStack
-			msgstruct.File=CallStack
-			msgstruct.Stack=ShortFile
-		} else {
-			_, ShortFile := GetCallStack(5, loggerFuncCallDepth, "")
-			//msgjson["file"] = ShortFile
-			//msgjson["stack"] = ""
-			msgstruct.File=ShortFile
-			msgstruct.Stack=""
-		}
-
-		//set level info in front of filename info
-		//msgjson["processid"] = processId
-		//msgjson["level"] = LevelPrefix[logLevel]
-
-		msgstruct.ProcessId=processId
-		msgstruct.Level=LevelPrefix[logLevel]
-
-		if span != nil {
-			//msgjson["trace_id"] = span.Trace
-			//msgjson["trace_span"] = span.Span
-			msgstruct.TraceId=span.Trace
-			msgstruct.TraceSpan=span.Span
-		} else {
-			//msgjson["trace_id"] = ""
-			//msgjson["trace_span"] = ""
-			msgstruct.TraceId=""
-			msgstruct.TraceSpan=""
-		}
-		msgbys, err := json.Marshal(msgstruct)
-		if err != nil {
-			return "", err
-		}
-		return string(msgbys), nil
-	}
-}
-
-
 // BeeLogger is default logger in beego application.
 // it can contain several providers and log message into all providers.
 type BeeLogger struct {
@@ -223,16 +114,14 @@ type BeeLogger struct {
 	level               int
 	init                bool
 	enableFuncCallDepth bool
-	formatFunc			FormatFunc
 	loggerFuncCallDepth int
 	asynchronous        bool
+	prefix              string
 	msgChanLen          int64
-	contentType         string //text/plain application/json
 	msgChan             chan *logMsg
 	signalChan          chan string
 	wg                  sync.WaitGroup
 	outputs             []*nameLogger
-	ProcessID           string
 }
 
 const defaultAsyncMsgLen = 1e3
@@ -243,10 +132,9 @@ type nameLogger struct {
 }
 
 type logMsg struct {
-	level    int
-	original bool
-	msg      string
-	when     time.Time
+	level int
+	msg   string
+	when  time.Time
 }
 
 var logMsgPool *sync.Pool
@@ -258,7 +146,6 @@ func NewLogger(channelLens ...int64) *BeeLogger {
 	bl := new(BeeLogger)
 	bl.level = LevelDebug
 	bl.loggerFuncCallDepth = 2
-	bl.contentType = "text/plain"
 	bl.msgChanLen = append(channelLens, 0)[0]
 	if bl.msgChanLen <= 0 {
 		bl.msgChanLen = defaultAsyncMsgLen
@@ -300,12 +187,12 @@ func (bl *BeeLogger) setLogger(adapterName string, configs ...string) error {
 		}
 	}
 
-	log, ok := adapters[adapterName]
+	logAdapter, ok := adapters[adapterName]
 	if !ok {
 		return fmt.Errorf("logs: unknown adaptername %q (forgotten Register?)", adapterName)
 	}
 
-	lg := log()
+	lg := logAdapter()
 	err := lg.Init(config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "logs.BeeLogger.SetLogger: "+err.Error())
@@ -346,20 +233,12 @@ func (bl *BeeLogger) DelLogger(adapterName string) error {
 	return nil
 }
 
-func (bl *BeeLogger) writeToLoggers(original bool, when time.Time, msg string, level int) {
+func (bl *BeeLogger) writeToLoggers(when time.Time, msg string, level int) {
 	for _, l := range bl.outputs {
-		if original == true {
-			err := l.WriteOriginalMsg(when, msg, level)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "unable to WriteMsg to adapter:%v,error:%v\n", l.name, err)
-			}
-		} else {
-			err := l.WriteMsg(when, msg, level)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "unable to WriteMsg to adapter:%v,error:%v\n", l.name, err)
-			}
+		err := l.WriteMsg(when, msg, level)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "unable to WriteMsg to adapter:%v,error:%v\n", l.name, err)
 		}
-
 	}
 }
 
@@ -372,226 +251,55 @@ func (bl *BeeLogger) Write(p []byte) (n int, err error) {
 		p = p[0 : len(p)-1]
 	}
 	// set levelLoggerImpl to ensure all log message will be write out
-	err = bl.writeMsg(nil, levelLoggerImpl, string(p))
+	err = bl.writeMsg(levelLoggerImpl, string(p))
 	if err == nil {
 		return len(p), err
 	}
 	return 0, err
 }
 
-func (bl *BeeLogger) formatText(when time.Time, span *BeegoTraceSpan, logLevel int, msg string, v ...interface{}) (string, error) {
-	if len(v) > 0 {
-		msg = fmt.Sprintf(msg, v...)
-	}
-	if bl.enableFuncCallDepth {
-		//_, file, line, ok := runtime.Caller(bl.loggerFuncCallDepth)
-		//if !ok {
-		//	file = "???"
-		//	line = 0
-		//}
-		//_, filename := path.Split(file)
-		//msg = "[" + filename + ":" + strconv.Itoa(line) + "] " + msg
-		if logLevel <= LevelWarn {
-			CallStack, ShortFile := GetCallStack(5, bl.loggerFuncCallDepth, "")
-			msg = "[" + ShortFile + "] " + msg + " " + CallStack
-		} else {
-			_, ShortFile := GetCallStack(5, bl.loggerFuncCallDepth, "")
-			msg = "[" + ShortFile + "] " + msg
-		}
-
-	}
-
-	//set level info in front of filename info
-	if logLevel == levelLoggerImpl {
-		// set to emergency to ensure all log will be print out correctly
-		logLevel = LevelEmergency
-	} else {
-		msg = "[" + bl.ProcessID + "] " + LevelPrefix[logLevel] + msg
-	}
-
-	if span != nil {
-		msg = " [" + span.Trace + "] " + "[" + span.Span + "] " + msg
-	} else {
-		msg = " [-] " + "[-] " + msg
-	}
-	return msg, nil
-}
-
-func (bl *BeeLogger) formatJson(when time.Time, span *BeegoTraceSpan, logLevel int, msg string, v ...interface{}) (string, error) {
-	if len(v) > 0 {
-		msg = fmt.Sprintf(msg, v...)
-	}
-	h, _ := FormatTimeHeader(when)
-	msgstruct:=&JsonStruct{}
-	msgstruct.FormatTime=string(h)
-	msgstruct.TimeStamp=when.UnixNano()
-	msgstruct.Message=msg
-	//msgjson := map[string]interface{}{
-	//	"message":    msg,
-	//	"formattime": string(h),
-	//	"timestamp":  when.UnixNano(),
-	//}
-	if bl.enableFuncCallDepth {
-		//_, file, line, ok := runtime.Caller(bl.loggerFuncCallDepth)
-		//if !ok {
-		//	file = "???"
-		//	line = 0
-		//}
-		//_, filename := path.Split(file)
-		//msg = "[" + filename + ":" + strconv.Itoa(line) + "] " + msg
-		if logLevel <= LevelWarn {
-			CallStack, ShortFile := GetCallStack(5, bl.loggerFuncCallDepth, "")
-			//msgjson["file"] = ShortFile
-			//msgjson["stack"] = CallStack
-			msgstruct.File=CallStack
-			msgstruct.Stack=ShortFile
-		} else {
-			_, ShortFile := GetCallStack(5, bl.loggerFuncCallDepth, "")
-			//msgjson["file"] = ShortFile
-			//msgjson["stack"] = ""
-			msgstruct.File=ShortFile
-			msgstruct.Stack=""
-		}
-
-	}
-
-	//set level info in front of filename info
-	if logLevel == levelLoggerImpl {
-		// set to emergency to ensure all log will be print out correctly
-		logLevel = LevelEmergency
-	} else {
-		//msgjson["processid"] = bl.ProcessID
-		//msgjson["level"] = LevelPrefix[logLevel]
-		msgstruct.ProcessId=bl.ProcessID
-		msgstruct.Level=LevelPrefix[logLevel]
-	}
-
-	if span != nil {
-		//msgjson["trace_id"] = span.Trace
-		//msgjson["trace_span"] = span.Span
-		msgstruct.TraceId=span.Trace
-		msgstruct.TraceSpan=span.Span
-	} else {
-		//msgjson["trace_id"] = ""
-		//msgjson["trace_span"] = ""
-		msgstruct.TraceId=""
-		msgstruct.TraceSpan=""
-	}
-	msgbys, err := json.Marshal(msgstruct)
-	if err != nil {
-		return "", err
-	}
-	return string(msgbys), nil
-}
-
-func (bl *BeeLogger) writeMsg(span *BeegoTraceSpan, logLevel int, msg string, v ...interface{}) error {
+func (bl *BeeLogger) writeMsg(logLevel int, msg string, v ...interface{}) error {
 	if !bl.init {
 		bl.lock.Lock()
 		bl.setLogger(AdapterConsole)
 		bl.lock.Unlock()
 	}
 
-	when := time.Now()
-	original := false
-	if bl.formatFunc!=nil{
-		message, err := bl.formatFunc(when, span, logLevel, msg, v...)
-		if err != nil {
-			return err
-		}
-		msg = message
-		original = true
-	}else if bl.contentType == "application/json" {
-		message, err := bl.formatJson(when, span, logLevel, msg, v...)
-		if err != nil {
-			return err
-		}
-		msg = message
-		original = true
-	} else {
-		message, err := bl.formatText(when, span, logLevel, msg, v...)
-		if err != nil {
-			return err
-		}
-		msg = message
-		original = false
+	if len(v) > 0 {
+		msg = fmt.Sprintf(msg, v...)
 	}
+
+	msg = bl.prefix + " " + msg
+
+	when := time.Now()
+	if bl.enableFuncCallDepth {
+		_, file, line, ok := runtime.Caller(bl.loggerFuncCallDepth)
+		if !ok {
+			file = "???"
+			line = 0
+		}
+		_, filename := path.Split(file)
+		msg = "[" + filename + ":" + strconv.Itoa(line) + "] " + msg
+	}
+
+	//set level info in front of filename info
+	if logLevel == levelLoggerImpl {
+		// set to emergency to ensure all log will be print out correctly
+		logLevel = LevelEmergency
+	} else {
+		msg = levelPrefix[logLevel] + " " + msg
+	}
+
 	if bl.asynchronous {
 		lm := logMsgPool.Get().(*logMsg)
 		lm.level = logLevel
 		lm.msg = msg
 		lm.when = when
-		lm.original = original
 		bl.msgChan <- lm
 	} else {
-		bl.writeToLoggers(original, when, msg, logLevel)
+		bl.writeToLoggers(when, msg, logLevel)
 	}
 	return nil
-}
-
-func (bl *BeeLogger) writeBiReport(msg string, logLevel int) error {
-	if !bl.init {
-		bl.lock.Lock()
-		bl.setLogger(AdapterConsole)
-		bl.lock.Unlock()
-	}
-
-	when := time.Now()
-	if bl.asynchronous {
-		lm := logMsgPool.Get().(*logMsg)
-		lm.level = LevelError
-		lm.msg = msg
-		lm.original = true
-		lm.when = when
-		bl.msgChan <- lm
-	} else {
-		bl.writeToLoggers(true, when, msg, logLevel)
-	}
-	return nil
-}
-
-// GetCallStack returns the current call stack information as a string.
-// The skip parameter specifies how many top frames should be skipped, while
-// the frames parameter specifies at most how many frames should be returned.
-func GetCallStack(skip int, frames int, filter string) (CallStack, sf string) {
-	buf := new(bytes.Buffer)
-	for i, count := skip, 0; count < frames; i++ {
-		_, file, line, ok := runtime.Caller(i)
-		if !ok {
-			break
-		}
-		moduleOf := moduleOf(file)
-		shortfile := shortfile(file)
-		if sf == "" {
-			sf = fmt.Sprintf("%s:%d", shortfile, line)
-		}
-		file = moduleOf + "/" + shortfile
-		if filter == "" || strings.Contains(file, filter) {
-			fmt.Fprintf(buf, "\n%s:%d", file, line)
-			count++
-		}
-	}
-	return buf.String(), sf
-}
-func moduleOf(file string) string {
-	pos := strings.LastIndex(file, "/")
-	if pos != -1 {
-		pos1 := strings.LastIndex(file[:pos], "/src/")
-		if pos1 != -1 {
-			return file[pos1+5 : pos]
-		}
-	}
-	return "UNKNOWN"
-}
-func shortfile(file string) string {
-	short := file
-	for i := len(file) - 1; i > 0; i-- {
-		if file[i] == '/' {
-			short = file[i+1:]
-			break
-		}
-	}
-	file = short
-	return file
 }
 
 // SetLevel Set log message level.
@@ -601,13 +309,14 @@ func (bl *BeeLogger) SetLevel(l int) {
 	bl.level = l
 }
 
+// GetLevel Get Current log message level.
+func (bl *BeeLogger) GetLevel() int {
+	return bl.level
+}
+
 // SetLogFuncCallDepth set log funcCallDepth
 func (bl *BeeLogger) SetLogFuncCallDepth(d int) {
 	bl.loggerFuncCallDepth = d
-}
-
-func (bl *BeeLogger) SetFormatFunc(d FormatFunc) {
-	bl.formatFunc = d
 }
 
 // GetLogFuncCallDepth return log funcCallDepth for wrapper
@@ -620,8 +329,9 @@ func (bl *BeeLogger) EnableFuncCallDepth(b bool) {
 	bl.enableFuncCallDepth = b
 }
 
-func (bl *BeeLogger) SetContentType(b string) {
-	bl.contentType = b
+// set prefix
+func (bl *BeeLogger) SetPrefix(s string) {
+	bl.prefix = s
 }
 
 // start logger chan reading.
@@ -631,7 +341,7 @@ func (bl *BeeLogger) startLogger() {
 	for {
 		select {
 		case bm := <-bl.msgChan:
-			bl.writeToLoggers(bm.original, bm.when, bm.msg, bm.level)
+			bl.writeToLoggers(bm.when, bm.msg, bm.level)
 			logMsgPool.Put(bm)
 		case sg := <-bl.signalChan:
 			// Now should only send "flush" or "close" to bl.signalChan
@@ -652,101 +362,94 @@ func (bl *BeeLogger) startLogger() {
 }
 
 // Emergency Log EMERGENCY level message.
-func (bl *BeeLogger) Emergency(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Emergency(format string, v ...interface{}) {
 	if LevelEmergency > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelEmergency, format, v...)
+	bl.writeMsg(LevelEmergency, format, v...)
 }
 
 // Alert Log ALERT level message.
-func (bl *BeeLogger) Alert(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Alert(format string, v ...interface{}) {
 	if LevelAlert > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelAlert, format, v...)
+	bl.writeMsg(LevelAlert, format, v...)
 }
 
 // Critical Log CRITICAL level message.
-func (bl *BeeLogger) Critical(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Critical(format string, v ...interface{}) {
 	if LevelCritical > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelCritical, format, v...)
+	bl.writeMsg(LevelCritical, format, v...)
 }
 
 // Error Log ERROR level message.
-func (bl *BeeLogger) Error(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Error(format string, v ...interface{}) {
 	if LevelError > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelError, format, v...)
+	bl.writeMsg(LevelError, format, v...)
 }
 
 // Warning Log WARNING level message.
-func (bl *BeeLogger) Warning(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Warning(format string, v ...interface{}) {
 	if LevelWarn > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelWarn, format, v...)
+	bl.writeMsg(LevelWarn, format, v...)
 }
 
 // Notice Log NOTICE level message.
-func (bl *BeeLogger) Notice(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Notice(format string, v ...interface{}) {
 	if LevelNotice > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelNotice, format, v...)
+	bl.writeMsg(LevelNotice, format, v...)
 }
 
 // Informational Log INFORMATIONAL level message.
-func (bl *BeeLogger) Informational(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Informational(format string, v ...interface{}) {
 	if LevelInfo > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelInfo, format, v...)
+	bl.writeMsg(LevelInfo, format, v...)
 }
 
 // Debug Log DEBUG level message.
-func (bl *BeeLogger) Debug(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Debug(format string, v ...interface{}) {
 	if LevelDebug > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelDebug, format, v...)
+	bl.writeMsg(LevelDebug, format, v...)
 }
 
 // Warn Log WARN level message.
 // compatibility alias for Warning()
-func (bl *BeeLogger) Warn(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Warn(format string, v ...interface{}) {
 	if LevelWarn > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelWarn, format, v...)
+	bl.writeMsg(LevelWarn, format, v...)
 }
 
 // Info Log INFO level message.
 // compatibility alias for Informational()
-func (bl *BeeLogger) Info(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Info(format string, v ...interface{}) {
 	if LevelInfo > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelInfo, format, v...)
+	bl.writeMsg(LevelInfo, format, v...)
 }
 
 // Trace Log TRACE level message.
 // compatibility alias for Debug()
-func (bl *BeeLogger) Trace(span *BeegoTraceSpan, format string, v ...interface{}) {
+func (bl *BeeLogger) Trace(format string, v ...interface{}) {
 	if LevelDebug > bl.level {
 		return
 	}
-	bl.writeMsg(span, LevelDebug, format, v...)
-}
-
-func (bl *BeeLogger) BiReport(msg string) {
-	if LevelEmergency > bl.level {
-		return
-	}
-	bl.writeBiReport(msg, LevelEmergency)
+	bl.writeMsg(LevelDebug, format, v...)
 }
 
 // Flush flush all chan data.
@@ -790,7 +493,7 @@ func (bl *BeeLogger) flush() {
 		for {
 			if len(bl.msgChan) > 0 {
 				bm := <-bl.msgChan
-				bl.writeToLoggers(bm.original, bm.when, bm.msg, bm.level)
+				bl.writeToLoggers(bm.when, bm.msg, bm.level)
 				logMsgPool.Put(bm)
 				continue
 			}
@@ -855,6 +558,11 @@ func SetLevel(l int) {
 	beeLogger.SetLevel(l)
 }
 
+// SetPrefix sets the prefix
+func SetPrefix(s string) {
+	beeLogger.SetPrefix(s)
+}
+
 // EnableFuncCallDepth enable log funcCallDepth
 func EnableFuncCallDepth(b bool) {
 	beeLogger.enableFuncCallDepth = b
@@ -876,61 +584,60 @@ func SetLogger(adapter string, config ...string) error {
 	return beeLogger.SetLogger(adapter, config...)
 }
 
-//
 // Emergency logs a message at emergency level.
 func Emergency(f interface{}, v ...interface{}) {
-	beeLogger.Emergency(nil, formatLog(f, v...))
+	beeLogger.Emergency(formatLog(f, v...))
 }
 
 // Alert logs a message at alert level.
 func Alert(f interface{}, v ...interface{}) {
-	beeLogger.Alert(nil, formatLog(f, v...))
+	beeLogger.Alert(formatLog(f, v...))
 }
 
 // Critical logs a message at critical level.
 func Critical(f interface{}, v ...interface{}) {
-	beeLogger.Critical(nil, formatLog(f, v...))
+	beeLogger.Critical(formatLog(f, v...))
 }
 
 // Error logs a message at error level.
 func Error(f interface{}, v ...interface{}) {
-	beeLogger.Error(nil, formatLog(f, v...))
+	beeLogger.Error(formatLog(f, v...))
 }
 
 // Warning logs a message at warning level.
 func Warning(f interface{}, v ...interface{}) {
-	beeLogger.Warn(nil, formatLog(f, v...))
+	beeLogger.Warn(formatLog(f, v...))
 }
 
 // Warn compatibility alias for Warning()
 func Warn(f interface{}, v ...interface{}) {
-	beeLogger.Warn(nil, formatLog(f, v...))
+	beeLogger.Warn(formatLog(f, v...))
 }
 
 // Notice logs a message at notice level.
 func Notice(f interface{}, v ...interface{}) {
-	beeLogger.Notice(nil, formatLog(f, v...))
+	beeLogger.Notice(formatLog(f, v...))
 }
 
 // Informational logs a message at info level.
 func Informational(f interface{}, v ...interface{}) {
-	beeLogger.Info(nil, formatLog(f, v...))
+	beeLogger.Info(formatLog(f, v...))
 }
 
 // Info compatibility alias for Warning()
 func Info(f interface{}, v ...interface{}) {
-	beeLogger.Info(nil, formatLog(f, v...))
+	beeLogger.Info(formatLog(f, v...))
 }
 
 // Debug logs a message at debug level.
 func Debug(f interface{}, v ...interface{}) {
-	beeLogger.Debug(nil, formatLog(f, v...))
+	beeLogger.Debug(formatLog(f, v...))
 }
 
 // Trace logs a message at trace level.
 // compatibility alias for Warning()
 func Trace(f interface{}, v ...interface{}) {
-	beeLogger.Trace(nil, formatLog(f, v...))
+	beeLogger.Trace(formatLog(f, v...))
 }
 
 func formatLog(f interface{}, v ...interface{}) string {
@@ -955,4 +662,8 @@ func formatLog(f interface{}, v ...interface{}) string {
 		msg += strings.Repeat(" %v", len(v))
 	}
 	return fmt.Sprintf(msg, v...)
+}
+
+func FormatLog(f interface{}, v ...interface{}) string {
+	return formatLog(f,v...)
 }

@@ -8,8 +8,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/belogik/goes"
+	"github.com/OwnLocal/goes"
 	logs "github.com/kudoochui/kudos/log/beego"
+
 )
 
 // NewES return a LoggerInterface
@@ -21,7 +22,7 @@ func NewES() logs.Logger {
 }
 
 type esLogger struct {
-	*goes.Connection
+	*goes.Client
 	DSN   string `json:"dsn"`
 	Level int    `json:"level"`
 }
@@ -41,15 +42,15 @@ func (el *esLogger) Init(jsonconfig string) error {
 	} else if host, port, err := net.SplitHostPort(u.Host); err != nil {
 		return err
 	} else {
-		conn := goes.NewConnection(host, port)
-		el.Connection = conn
+		conn := goes.NewClient(host, port)
+		el.Client = conn
 	}
 	return nil
 }
 
 // WriteMsg will write the msg and level into es
 func (el *esLogger) WriteMsg(when time.Time, msg string, level int) error {
-	if level < el.Level {
+	if level > el.Level {
 		return nil
 	}
 
@@ -65,10 +66,6 @@ func (el *esLogger) WriteMsg(when time.Time, msg string, level int) error {
 	return err
 }
 
-func (s *esLogger) WriteOriginalMsg(when time.Time, msg string, level int) error {
-	return s.WriteMsg(when, msg, level)
-}
-
 // Destroy is a empty method
 func (el *esLogger) Destroy() {
 
@@ -82,3 +79,4 @@ func (el *esLogger) Flush() {
 func init() {
 	logs.Register(logs.AdapterEs, NewES)
 }
+
