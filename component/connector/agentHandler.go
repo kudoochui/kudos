@@ -9,6 +9,7 @@ import (
 	"github.com/kudoochui/kudos/service/codecService"
 	"github.com/kudoochui/kudos/service/msgService"
 	"github.com/kudoochui/kudos/utils/timer"
+	"time"
 )
 
 const (
@@ -57,7 +58,7 @@ func (h *agentHandler) handleHandshake(pkgType int, body []byte) {
 	res := make(map[string]interface{})
 	res["code"] = CODE_OK
 	res["sys"] = sys
-	sys["heartbeat"] = 10
+	sys["heartbeat"] = h.agent.connector.opts.HeartbeatTimeout / time.Second
 	sys["useDict"] = true
 	sys["dict"] = msgService.GetMsgService().GetMsgMap()
 
