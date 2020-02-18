@@ -52,7 +52,7 @@ func (m *msgMgr) Register(route string, msgReq interface{}, msgResp interface{})
 	i.MsgReqType = msgType
 	i.MsgRespType = msgRespType
 
-	m.msgMap[route] = uint16(len(m.msgArray))
+	m.msgMap[route] = uint16(len(m.msgArray)+1)
 	m.msgArray = append(m.msgArray, i)
 }
 
@@ -65,21 +65,21 @@ func (m *msgMgr) RegisterPush(route string) {
 	i := new(MsgInfo)
 	i.Route = route
 
-	m.msgMap[route] = uint16(len(m.msgArray))
+	m.msgMap[route] = uint16(len(m.msgArray)+1)
 	m.msgArray = append(m.msgArray, i)
 }
 
 func (m *msgMgr) GetMsgByRouteId(route uint16) *MsgInfo {
-	if int(route) >= len(m.msgArray) {
+	if int(route) > len(m.msgArray) {
 		log.Warning("routeId is out of range")
 		return nil
 	}
-	return m.msgArray[route]
+	return m.msgArray[route-1]
 }
 
 func (m *msgMgr) GetMsgByRoute(route string) *MsgInfo {
 	routeId := m.msgMap[route]
-	return m.msgArray[routeId]
+	return m.msgArray[routeId-1]
 }
 
 func (m *msgMgr) GetRouteId(route string) uint16 {
