@@ -11,7 +11,8 @@ type Connector struct {
 	sessions		*sessionMap
 	sessionRemote	*SessionRemote
 	channelRemote 	*ChannelRemote
-	Route           rpc.RpcRouter
+	route           rpc.RpcRouter
+	customerRoute 	rpc.CustomerRoute
 	remote			rpc.HandlerRegister
 	connection 		Connection
 	timers 			*Timers
@@ -95,7 +96,11 @@ func (c *Connector) Run(closeSig chan bool) {
 func (c *Connector) OnDestroy() {}
 
 func (c *Connector) SetRouter(route rpc.RpcRouter){
-	c.Route = route
+	c.route = route
+}
+
+func (c *Connector) Route(f rpc.CustomerRoute){
+	c.customerRoute = f
 }
 
 func (c *Connector) Cb(session *rpc.Session, msgId int, msg interface{}) {

@@ -97,7 +97,19 @@ func (h *agentHandler) handleData(pkgType int, body []byte) {
 	call := m.(*rpc.Call)
 	call.MsgId = msgId
 	call.Session = h.agent.session
-	h.agent.connector.Route.Go(call)
+	if h.agent.connector.customerRoute != nil {
+		call.ServicePath, err = h.agent.connector.customerRoute(call.Session, call.ServicePath, call.ServiceName)
+		if err != nil {
+			log.Error("customer route error: %v", err)
+			reply := &rpc.Reply{
+				Code:    CODE_USE_ERROR,
+				ErrMsg:  err.Error(),
+			}
+			h.agent.WriteMsg(msgId, reply)
+			return
+		}
+	}
+	h.agent.connector.route.Go(call)
 }
 
 func (h *agentHandler) processError(code int){

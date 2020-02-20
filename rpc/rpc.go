@@ -31,6 +31,9 @@ type RpcRouter interface {
 	Go(call *Call)
 }
 
+// Route msg to the specified node
+type CustomerRoute func(session *Session, servicePath, serviceName string) (string, error)
+
 // proxy return msg to agent
 type RpcResponder interface {
 	Cb(session *Session, msgId int, msg interface{})
@@ -40,4 +43,5 @@ type RpcResponder interface {
 type HandlerRegister interface {
 	GetRemoteAddrs() string
 	RegisterHandler(rcvr interface{}, metadata string) error
+	RegisterName(name string, rcvr interface{}, metadata string) error
 }
