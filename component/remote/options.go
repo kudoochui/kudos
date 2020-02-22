@@ -28,7 +28,7 @@ func Addr(s string) Option {
 	}
 }
 
-// Register service type. option is Consul, etcd ...
+// Register service type. option is consul, etcd, etcdv3, zookeeper.
 func RegistryType(s string) Option {
 	return func(options *Options) {
 		options.RegistryType = s

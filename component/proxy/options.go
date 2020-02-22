@@ -7,6 +7,7 @@ type Options struct {
 	RegistryType 	string
 	RegistryAddr 	string
 	BasePath 		string
+	SelectMode 		string
 	ChanCallSize	int
 	ChanRetSize 	int
 	RpcPoolSize 	int
@@ -25,7 +26,7 @@ func newOptions(opts ...Option) *Options  {
 	return opt
 }
 
-// Register service type. option is Consul, etcd ...
+// Register service type. option is consul, etcd, etcdv3, zookeeper.
 func RegistryType(s string) Option {
 	return func(options *Options) {
 		options.RegistryType = s
@@ -43,6 +44,13 @@ func RegistryAddr(s string) Option {
 func BasePath(s string) Option {
 	return func(options *Options) {
 		options.BasePath = s
+	}
+}
+
+// Select mode of service. options is "RandomSelect","RoundRobin","WeightedRoundRobin","WeightedICMP","ConsistentHash","Closest".
+func SelectMode(s string) Option {
+	return func(options *Options) {
+		options.SelectMode = s
 	}
 }
 

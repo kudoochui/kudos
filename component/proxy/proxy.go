@@ -34,8 +34,35 @@ func (r *Proxy) OnDestroy() {
 }
 
 func (r *Proxy) Run(closeSig chan bool) {
-	d := client.NewConsulDiscovery(r.opts.BasePath, "", []string{r.opts.RegistryAddr}, nil)
-	r.pool = client.NewOneClientPool(r.opts.RpcPoolSize, client.Failtry, client.RandomSelect, d, client.DefaultOption)
+	var d client.ServiceDiscovery
+	switch r.opts.RegistryType {
+	case "consul":
+		d = client.NewConsulDiscovery(r.opts.BasePath, "", []string{r.opts.RegistryAddr}, nil)
+	case "etcd":
+		d = client.NewEtcdDiscovery(r.opts.BasePath, "", []string{r.opts.RegistryAddr}, nil)
+	case "etcdv3":
+		d = client.NewEtcdV3Discovery(r.opts.BasePath, "", []string{r.opts.RegistryAddr}, nil)
+	case "zookeeper":
+		d = client.NewZookeeperDiscovery(r.opts.BasePath, "", []string{r.opts.RegistryAddr}, nil)
+	}
+
+	var s client.SelectMode
+	switch r.opts.SelectMode {
+	case "RoundRobin":
+		s = client.RoundRobin
+	case "WeightedRoundRobin":
+		s = client.WeightedRoundRobin
+	case "WeightedICMP":
+		s = client.WeightedICMP
+	case "ConsistentHash":
+		s = client.ConsistentHash
+	case "Closest":
+		s = client.Closest
+	default:
+		s = client.RandomSelect
+	}
+
+	r.pool = client.NewOneClientPool(r.opts.RpcPoolSize, client.Failtry, s, d, client.DefaultOption)
 
 	for {
 		select {
@@ -78,17 +105,12 @@ func (r *Proxy) Go(call *rpc.Call) {
 }
 
 func (r *Proxy) exec(call *rpc.Call) {
-	//if err := r.RpcCall(call.ServicePath, call.ServiceName, call.MsgReq, call.MsgResp); err != nil {
-	//	log.Error("network call error: %v", err)
-	//}
 	args := &rpc.Args{
 		Session: *call.Session,
 		MsgId: call.MsgId,
 		MsgReq:  call.MsgReq,
 	}
-	//replay := &rpc.Reply{
-	//	MsgResp:call.MsgResp,
-	//}
+
 	xclient := r.pool.Get()
 	if _,err := xclient.Go(context.TODO(), call.ServicePath, call.ServiceName, args, call.MsgResp, r.ChanRet); err != nil {
 		log.Error("network call error: %v", err)

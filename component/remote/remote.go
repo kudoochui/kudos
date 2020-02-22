@@ -6,9 +6,6 @@ import (
 	"github.com/kudoochui/kudos/log"
 	"reflect"
 	"time"
-)
-
-import (
 	metrics "github.com/rcrowley/go-metrics"
 	"github.com/kudoochui/rpcx/server"
 	"github.com/kudoochui/rpcx/serverplugin"
@@ -18,6 +15,10 @@ type Remote struct {
 	opts    		*Options
 
 	server			*server.Server
+}
+
+type RegisterPlugin interface {
+	Start() error
 }
 
 func NewRemote(opts ...Option) *Remote {
@@ -61,13 +62,42 @@ func (r *Remote) RegisterName(nodeId string, rcvr interface{}, metadata string) 
 
 func (r *Remote) addRegistryPlugin() {
 
-	p := &serverplugin.ConsulRegisterPlugin{
-		ServiceAddress: "tcp@" + r.opts.Addr,
-		ConsulServers:  []string{r.opts.RegistryAddr},
-		BasePath:       r.opts.BasePath,
-		Metrics:        metrics.NewRegistry(),
-		UpdateInterval: time.Minute,
+	var p RegisterPlugin
+	switch r.opts.RegistryType {
+	case "consul":
+		p = &serverplugin.ConsulRegisterPlugin{
+			ServiceAddress: "tcp@" + r.opts.Addr,
+			ConsulServers:  []string{r.opts.RegistryAddr},
+			BasePath:       r.opts.BasePath,
+			Metrics:        metrics.NewRegistry(),
+			UpdateInterval: time.Minute,
+		}
+	case "etcd":
+		p = &serverplugin.EtcdRegisterPlugin{
+			ServiceAddress: "tcp@" + r.opts.Addr,
+			EtcdServers:    []string{r.opts.RegistryAddr},
+			BasePath:       r.opts.BasePath,
+			Metrics:        metrics.NewRegistry(),
+			UpdateInterval: time.Minute,
+		}
+	case "etcdv3":
+		p = &serverplugin.EtcdV3RegisterPlugin{
+			ServiceAddress: "tcp@" + r.opts.Addr,
+			EtcdServers:    []string{r.opts.RegistryAddr},
+			BasePath:       r.opts.BasePath,
+			Metrics:        metrics.NewRegistry(),
+			UpdateInterval: time.Minute,
+		}
+	case "zookeeper":
+		p = &serverplugin.ZooKeeperRegisterPlugin{
+			ServiceAddress:   "tcp@" + r.opts.Addr,
+			ZooKeeperServers: []string{r.opts.RegistryAddr},
+			BasePath:         r.opts.BasePath,
+			Metrics:          metrics.NewRegistry(),
+			UpdateInterval:   time.Minute,
+		}
 	}
+
 	err := p.Start()
 	if err != nil {
 		log.Error("%v", err)
