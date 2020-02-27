@@ -41,7 +41,7 @@ func (c *Channel) Leave(uid int64)  {
 		return
 	}
 	if a, ok := c.nodeMap[s.NodeAddr]; ok {
-		a = array.PullInt64(a, s.GetSessionId())
+		c.nodeMap[s.NodeAddr] = array.PullInt64(a, s.GetSessionId())
 	}
 
 	delete(c.group, uid)
