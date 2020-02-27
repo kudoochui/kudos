@@ -12,14 +12,14 @@ type Session struct {
 	UserId 		int64
 	userIdLock 	sync.RWMutex
 
-	settings	map[string]string
+	Settings	map[string]string
 }
 
 func NewSession(nodeAddr string) *Session  {
 	return &Session{
 		NodeAddr:  nodeAddr,
 		SessionId: idService.GenerateID().Int64(),
-		settings:  map[string]string{},
+		Settings:  map[string]string{},
 	}
 }
 
@@ -44,7 +44,7 @@ func (s *Session) SyncSettings(settings map[string]interface{}) {
 	for k,v := range settings {
 		_settings[k] = v.(string)
 	}
-	s.settings = _settings
+	s.Settings = _settings
 }
 
 func (s *Session) Bind(userId int64) {
@@ -69,18 +69,18 @@ func (s *Session) UnBind() {
 }
 
 func (s *Session) Get(key string) string {
-	return s.settings[key]
+	return s.Settings[key]
 }
 
 func (s *Session) Set(key, value string) {
-	if s.settings == nil {
-		s.settings = make(map[string]string)
+	if s.Settings == nil {
+		s.Settings = make(map[string]string)
 	}
-	s.settings[key] = value
+	s.Settings[key] = value
 }
 
 func (s *Session) Remove(key string) {
-	delete(s.settings, key)
+	delete(s.Settings, key)
 }
 
 func (s *Session) Clone() *Session {
@@ -88,11 +88,11 @@ func (s *Session) Clone() *Session {
 		NodeAddr:   s.NodeAddr,
 		SessionId:  s.SessionId,
 		UserId:     s.UserId,
-		settings:   map[string]string{},
+		Settings:   map[string]string{},
 	}
 
-	for k,v := range s.settings {
-		session.settings[k] = v
+	for k,v := range s.Settings {
+		session.Settings[k] = v
 	}
 	return session
 }
@@ -101,7 +101,7 @@ func (s *Session) Clone() *Session {
 func (s *Session) Push(){
 	args := &Args{
 		Session: *s,
-		MsgReq: s.settings,
+		MsgReq: s.Settings,
 	}
 	reply := &Reply{}
 	RpcInvoke(s.NodeAddr, "SessionRemote", "Push", args, reply)
