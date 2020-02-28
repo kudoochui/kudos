@@ -5,12 +5,14 @@ import (
 	"github.com/kudoochui/rpcx/client"
 	"github.com/kudoochui/kudos/log"
 	"github.com/kudoochui/kudos/rpc"
+	"sync"
 )
 
 type Proxy struct {
 	opts 			*Options
 
 	pool 			*client.OneClientPool
+	lock 			sync.RWMutex
 	ChanCall 		chan *rpc.Call
 	ChanRet 		chan *client.Call
 	responder 		rpc.RpcResponder
@@ -62,7 +64,9 @@ func (r *Proxy) Run(closeSig chan bool) {
 		s = client.RandomSelect
 	}
 
+	r.lock.Lock()
 	r.pool = client.NewOneClientPool(r.opts.RpcPoolSize, client.Failtry, s, d, client.DefaultOption)
+	r.lock.Unlock()
 
 	for {
 		select {
@@ -89,7 +93,9 @@ func (r *Proxy) SetRpcResponder(resp rpc.RpcResponder){
 }
 
 func (r *Proxy) RpcCall(servicePath string, serviceMethod string, args interface{}, reply interface{}) error {
+	r.lock.RLock()
 	xclient := r.pool.Get()
+	r.lock.RUnlock()
 	err := xclient.Call(context.TODO(), servicePath, serviceMethod, args, reply)
 	return err
 }

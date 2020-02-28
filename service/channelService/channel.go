@@ -5,12 +5,14 @@ import (
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/codecService"
 	"github.com/kudoochui/kudos/utils/array"
+	"sync"
 )
 
 type Channel struct {
 	name 		string
 	group 		map[int64]*rpc.Session			//uid => session
 	nodeMap 	map[string][]int64				//address => [sessionId]
+	lock 		sync.RWMutex
 }
 
 func NewChannel(name string) *Channel {
@@ -23,6 +25,9 @@ func NewChannel(name string) *Channel {
 
 // Add user to channel.
 func (c *Channel) Add(s *rpc.Session)  {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	c.group[s.GetUserId()] = s.Clone()
 
 	a := c.nodeMap[s.NodeAddr]
@@ -36,6 +41,9 @@ func (c *Channel) Add(s *rpc.Session)  {
 
 // Remove user from channel.
 func (c *Channel) Leave(uid int64)  {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	s := c.group[uid]
 	if s == nil {
 		return
@@ -49,6 +57,9 @@ func (c *Channel) Leave(uid int64)  {
 
 // Get userId array
 func (c *Channel) GetMembers() []int64  {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	array := make([]int64, len(c.group))
 	for k,_ := range c.group {
 		array = append(array, k)
@@ -62,6 +73,9 @@ func (c *Channel) PushMessage(route string, msg interface{}) {
 	if err != nil {
 		log.Error("marshal error: %v", err)
 	}
+
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	for addr, sids := range c.nodeMap {
 		args := &rpc.ArgsGroup{
