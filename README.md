@@ -19,6 +19,11 @@ kudos是一款基于微服务架构的简洁，高性能，易扩展，易部署
 ## 开发脚手架(示例)
 [kudosServer](https://github.com/kudoochui/kudosServer)
 
+## 游戏架构参考
+[游戏微服务架构设计：MMORPG](https://www.toutiao.com/i6798800455955644935/)
+[游戏微服务架构设计：挂机类游戏](https://www.toutiao.com/i6798814918574342660/)
+[游戏微服务架构设计：棋牌游戏](https://www.toutiao.com/i6798815085935460876/)
+[游戏微服务架构设计：io游戏](https://www.toutiao.com/i6798815271386612231/)
 ## Roadmap
 功能持续开发中
 
@@ -26,6 +31,9 @@ kudos是一款基于微服务架构的简洁，高性能，易扩展，易部署
 [wiki](https://github.com/kudoochui/kudos/wiki)
 
 QQ交流群：77584553
+
+关注头条号：丁玲隆咚呛
+分享更多内容
 
 ## 证书
 MIT License
