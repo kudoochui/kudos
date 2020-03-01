@@ -75,9 +75,13 @@ func (c *Channel) PushMessage(route string, msg interface{}) {
 	}
 
 	c.lock.RLock()
+	nodeMap := make(map[string][]int64, 0)
+	for k,v := range c.nodeMap {
+		nodeMap[k] = v
+	}
 	defer c.lock.RUnlock()
 
-	for addr, sids := range c.nodeMap {
+	for addr, sids := range nodeMap {
 		args := &rpc.ArgsGroup{
 			Sids:    sids,
 			Route: 	 route,
