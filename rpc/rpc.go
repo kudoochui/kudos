@@ -1,6 +1,8 @@
 package rpc
 
-import "github.com/mitchellh/mapstructure"
+import (
+	"github.com/mitchellh/mapstructure"
+)
 
 type Args struct {
 	Session Session
@@ -15,6 +17,7 @@ func (a *Args) GetObject(t interface{}) error {
 type Reply struct {
 	Code 	int
 	ErrMsg 	string
+	MsgResp interface{}
 }
 
 type Call struct {
@@ -24,6 +27,7 @@ type Call struct {
 	ServiceName string
 	MsgReq interface{}
 	MsgResp interface{}
+	Done 	interface{}
 }
 
 // agent route msg to proxy

@@ -23,7 +23,7 @@ func (s *SessionRemote) Bind(ctx context.Context, args *rpc.Args, reply *rpc.Rep
 	sessioinId := args.Session.GetSessionId()
 	agent,err := s.connector.sessions.GetAgent(sessioinId)
 	if err != nil {
-		log.Error("SessionService can't find session:%s", sessioinId)
+		log.Error("Bind can't find session:%s", sessioinId)
 	}
 	agent.GetSession().SetUserId(args.MsgReq.(int64))
 	log.Debug("Bind success: %d", agent.GetSession().GetUserId())
@@ -34,7 +34,7 @@ func (s *SessionRemote) UnBind(ctx context.Context, args *rpc.Args, reply *rpc.R
 	sessioinId := args.Session.GetSessionId()
 	agent,err := s.connector.sessions.GetAgent(sessioinId)
 	if err != nil {
-		log.Error("SessionService can't find session:%s", sessioinId)
+		log.Error("UnBind can't find session:%s", sessioinId)
 	}
 	agent.GetSession().SetUserId(0)
 	log.Debug("UnBind success: %d", agent.GetSession().GetUserId())
@@ -45,7 +45,7 @@ func (s *SessionRemote) Push(ctx context.Context, args *rpc.Args, reply *rpc.Rep
 	sessioinId := args.Session.GetSessionId()
 	agent,err := s.connector.sessions.GetAgent(sessioinId)
 	if err != nil {
-		log.Error("SessionService can't find session:%s", sessioinId)
+		log.Error("Push can't find session:%s", sessioinId)
 	}
 	settings := args.MsgReq.(map[string]interface{})
 	agent.GetSession().SyncSettings(settings)
@@ -57,7 +57,7 @@ func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rp
 	sessioinId := args.Session.GetSessionId()
 	agent,err := s.connector.sessions.GetAgent(sessioinId)
 	if err != nil {
-		log.Error("SessionService can't find session:%s", sessioinId)
+		log.Error("KickBySid can't find session:%s", sessioinId)
 		return err
 	}
 	reason := args.MsgReq.(string)

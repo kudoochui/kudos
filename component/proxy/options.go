@@ -17,7 +17,7 @@ func newOptions(opts ...Option) *Options  {
 	opt := &Options{
 		ChanCallSize: 100,
 		ChanRetSize: 100,
-		RpcPoolSize: 10,
+		RpcPoolSize: 1,
 	}
 
 	for _,o := range opts {
@@ -68,7 +68,7 @@ func ChanRetSize(s int) Option {
 	}
 }
 
-// Size of the rpcx client pool. Default is 10.
+// Size of the rpcx client pool. Default is 1.
 func RpcPoolSize(s int) Option {
 	return func(options *Options) {
 		options.RpcPoolSize = s

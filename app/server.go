@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/kudoochui/kudos/log"
+	"github.com/kudoochui/kudos/rpc"
 	"runtime"
 	"sync"
 )
@@ -49,6 +50,9 @@ func Destroy() {
 		m.wg.Wait()
 		destroy(m)
 	}
+
+	// Clean global objects
+	rpc.Cleanup()
 }
 
 func run(m *server) {

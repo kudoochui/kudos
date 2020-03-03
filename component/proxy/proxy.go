@@ -92,12 +92,21 @@ func (r *Proxy) SetRpcResponder(resp rpc.RpcResponder){
 	r.responder = resp
 }
 
-func (r *Proxy) RpcCall(servicePath string, serviceMethod string, args interface{}, reply interface{}) error {
-	r.lock.RLock()
-	xclient := r.pool.Get()
-	r.lock.RUnlock()
-	err := xclient.Call(context.TODO(), servicePath, serviceMethod, args, reply)
-	return err
+func (r *Proxy) RpcCall(servicePath string, serviceMethod string, args *rpc.Args, reply interface{}) error {
+	call := &rpc.Call{
+		Session:     &args.Session,
+		MsgId:       args.MsgId,
+		ServicePath: servicePath,
+		ServiceName: serviceMethod,
+		MsgReq:      args,
+		MsgResp:     reply,
+		Done:        make(chan *client.Call, 1),
+	}
+	r.Go(call)
+
+	done := <- call.Done.(chan *client.Call)
+	reply = done.Reply
+	return nil
 }
 
 func (r *Proxy) Go(call *rpc.Call) {
@@ -118,7 +127,11 @@ func (r *Proxy) exec(call *rpc.Call) {
 	}
 
 	xclient := r.pool.Get()
-	if _,err := xclient.Go(context.TODO(), call.ServicePath, call.ServiceName, args, call.MsgResp, r.ChanRet); err != nil {
+	c := r.ChanRet
+	if call.Done != nil {
+		c = call.Done.(chan *client.Call)
+	}
+	if _,err := xclient.Go(context.TODO(), call.ServicePath, call.ServiceName, args, call.MsgResp, c); err != nil {
 		log.Error("network call error: %v", err)
 	}
 }
