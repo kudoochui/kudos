@@ -35,15 +35,22 @@ func (r *Remote) OnInit() {
 }
 
 func (r *Remote) OnDestroy() {
-	//r.server.Close()
-	r.server.Shutdown(context.TODO())
+
 }
 
 func (r *Remote) Run(closeSig chan bool) {
-	err := r.server.Serve("tcp", r.opts.Addr)
-	if err != nil {
-		log.Error("rpcx serve %v", err)
-	}
+	go func() {
+		err := r.server.Serve("tcp", r.opts.Addr)
+		if err != nil {
+			log.Info("rpcx serve %v", err)
+		}
+	}()
+
+	<- closeSig
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	defer cancel()
+	r.server.Shutdown(ctx)
 }
 
 func (r *Remote) GetRemoteAddrs() string {
