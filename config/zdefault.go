@@ -163,6 +163,13 @@ func (b *AppConfig) GetMap(key string) (map[string]interface{}, error) {
 	return b.innerConfig.GetMap(key)
 }
 
+func (b *AppConfig) GetEnvMap() (map[string]interface{}, error) {
+	if v, err := b.innerConfig.GetMap(RunMode); err == nil {
+		return v, nil
+	}
+	return b.innerConfig.GetMap(RunMode)
+}
+
 func (b *AppConfig) SaveConfigFile(filename string) error {
 	return b.innerConfig.SaveConfigFile(filename)
 }
