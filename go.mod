@@ -9,9 +9,11 @@ require (
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.3
+	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
+	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.1
 	github.com/json-iterator/go v1.1.9
-	github.com/kudoochui/rpcx v0.0.0-20200213024543-2de6979895fd
+	github.com/kudoochui/rpcx v0.0.0-20200303110342-a33fbecafc55
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
