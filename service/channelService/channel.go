@@ -60,11 +60,22 @@ func (c *Channel) GetMembers() []int64  {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	array := make([]int64, len(c.group))
+	array := make([]int64, 0)
 	for k,_ := range c.group {
 		array = append(array, k)
 	}
 	return array
+}
+
+func (c *Channel) GetSessions() map[int64]*rpc.Session {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	m := make(map[int64]*rpc.Session, 0)
+	for k,v := range c.group {
+		m[k] = v
+	}
+	return m
 }
 
 // Push message to all the members in the channel
