@@ -71,3 +71,9 @@ func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rp
 	agent.Close()
 	return nil
 }
+
+func (s *SessionRemote) GetSessionCount(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
+	count := s.connector.sessions.GetSessionCount()
+	reply.MsgResp = count
+	return nil
+}
