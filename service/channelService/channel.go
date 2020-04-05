@@ -1,6 +1,7 @@
 package channelService
 
 import (
+	"errors"
 	"github.com/kudoochui/kudos/log"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/codecService"
@@ -24,10 +25,13 @@ func NewChannel(name string) *Channel {
 }
 
 // Add user to channel.
-func (c *Channel) Add(s *rpc.Session)  {
+func (c *Channel) Add(s *rpc.Session) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
+	if _,ok := c.group[s.GetUserId()]; ok {
+		return errors.New("already in channel")
+	}
 	c.group[s.GetUserId()] = s.Clone()
 
 	a := c.nodeMap[s.NodeAddr]
@@ -37,6 +41,7 @@ func (c *Channel) Add(s *rpc.Session)  {
 		a = make([]int64,0)
 		c.nodeMap[s.NodeAddr] = append(a, s.GetSessionId())
 	}
+	return nil
 }
 
 // Remove user from channel.
@@ -88,9 +93,11 @@ func (c *Channel) PushMessage(route string, msg interface{}) {
 	c.lock.RLock()
 	nodeMap := make(map[string][]int64, 0)
 	for k,v := range c.nodeMap {
-		nodeMap[k] = v
+		w := make([]int64, len(v))
+		copy(w, v)
+		nodeMap[k] = w
 	}
-	defer c.lock.RUnlock()
+	c.lock.RUnlock()
 
 	for addr, sids := range nodeMap {
 		args := &rpc.ArgsGroup{
@@ -99,6 +106,6 @@ func (c *Channel) PushMessage(route string, msg interface{}) {
 			Payload:  data,
 		}
 		reply := &rpc.ReplyGroup{}
-		rpc.RpcInvoke(addr, "ChannelRemote", "PushMessageByGroup", args, reply)
+		rpc.RpcGo(addr, "ChannelRemote", "PushMessageByGroup", args, reply)
 	}
 }

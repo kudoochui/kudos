@@ -21,6 +21,7 @@ type ReplyGroup struct {
 
 var RpcMap sync.Map
 
+// Synchronized rpc calling
 func RpcInvoke(addrs string, servicePath, serviceMethod string, args interface{}, reply interface{}) error {
 	var xclient *client.OneClient
 	a, ok := RpcMap.Load(addrs)
@@ -33,6 +34,25 @@ func RpcInvoke(addrs string, servicePath, serviceMethod string, args interface{}
 	}
 
 	err := xclient.Call(context.TODO(), servicePath, serviceMethod, args, reply)
+	if err != nil {
+		log.Error("rpcInvoke error: %v", err)
+	}
+	return err
+}
+
+// Asynchronous rpc calling
+func RpcGo(addrs string, servicePath, serviceMethod string, args interface{}, reply interface{}) error {
+	var xclient *client.OneClient
+	a, ok := RpcMap.Load(addrs)
+	if !ok || a == nil {
+		d := client.NewPeer2PeerDiscovery("tcp@"+addrs, "")
+		xclient = client.NewOneClient(client.Failtry, client.RandomSelect, d, client.DefaultOption)
+		RpcMap.Store(addrs, xclient)
+	} else {
+		xclient = a.(*client.OneClient)
+	}
+
+	_,err := xclient.Go(context.TODO(), servicePath, serviceMethod, args, reply, nil)
 	if err != nil {
 		log.Error("rpcInvoke error: %v", err)
 	}
