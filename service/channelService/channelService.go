@@ -56,6 +56,20 @@ func (c *ChannelService) PushMessageBySid(nodeAddr string, route string, msg int
 	rpc.RpcInvoke(nodeAddr, "ChannelRemote", "PushMessageByGroup", args, reply)
 }
 
+func (c *ChannelService) AsyncPushMessageBySid(nodeAddr string, route string, msg interface{}, sids []int64) {
+	data, err := codecService.GetCodecService().Marshal(msg)
+	if err != nil {
+		log.Error("marshal error: %v", err)
+	}
+	args := &rpc.ArgsGroup{
+		Sids:    sids,
+		Route:	 route,
+		Payload:  data,
+	}
+	reply := &rpc.ReplyGroup{}
+	rpc.RpcGo(nodeAddr, "ChannelRemote", "PushMessageByGroup", args, reply)
+}
+
 func (c *ChannelService) Broadcast(nodeAddr string, route string, msg interface{}) {
 	data, err := codecService.GetCodecService().Marshal(msg)
 	if err != nil {

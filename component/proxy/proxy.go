@@ -98,7 +98,7 @@ func (r *Proxy) RpcCall(servicePath string, serviceMethod string, args *rpc.Args
 		MsgId:       args.MsgId,
 		ServicePath: servicePath,
 		ServiceName: serviceMethod,
-		MsgReq:      args,
+		MsgReq:      args.MsgReq,
 		MsgResp:     reply,
 		Done:        make(chan *client.Call, 1),
 	}
