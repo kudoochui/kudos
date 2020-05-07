@@ -81,5 +81,5 @@ func (c *ChannelService) Broadcast(nodeAddr string, route string, msg interface{
 		Payload:  data,
 	}
 	reply := &rpc.ReplyGroup{}
-	rpc.RpcInvoke(nodeAddr, "ChannelRemote", "Broadcast", args, reply)
+	rpc.RpcGo(nodeAddr, "ChannelRemote", "Broadcast", args, reply)
 }
