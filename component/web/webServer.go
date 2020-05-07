@@ -15,6 +15,7 @@ type WebServer struct {
 	server 		*http.Server
 	router 		*mux.Router
 	routeMap 	map[string]Handler
+	prefixRouteMap map[string]http.Handler
 }
 
 func NewWebServer(opts ...Option) *WebServer {
@@ -23,6 +24,7 @@ func NewWebServer(opts ...Option) *WebServer {
 	web := &WebServer{
 		opts: options,
 		routeMap: map[string]Handler{},
+		prefixRouteMap: map[string]http.Handler{},
 	}
 
 	return web
@@ -30,6 +32,10 @@ func NewWebServer(opts ...Option) *WebServer {
 
 func (w *WebServer) Route(path string, f Handler) {
 	w.routeMap[path] = f
+}
+
+func (w *WebServer) PrefixRoute(path string, f http.Handler) {
+	w.prefixRouteMap[path] = f
 }
 
 func (w *WebServer) OnInit() {
@@ -45,6 +51,11 @@ func (w *WebServer) Run(closeSig chan bool) {
 	for p,f := range w.routeMap {
 		w.router.HandleFunc(p, f)
 	}
+
+	for p,f := range w.prefixRouteMap {
+		w.router.PathPrefix(p).Handler(f)
+	}
+
 	w.server = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", w.opts.ListenIp, w.opts.ListenPort),
 		WriteTimeout: w.opts.WriteTimeout,
