@@ -11,11 +11,13 @@ import (
 type Proxy struct {
 	opts 			*Options
 
-	pool 			*client.OneClientPool
-	lock 			sync.RWMutex
-	ChanCall 		chan *rpc.Call
-	ChanRet 		chan *client.Call
-	responder 		rpc.RpcResponder
+	pool          *client.OneClientPool
+	lock          sync.RWMutex
+	chanCall      chan *rpc.Call
+	chanRet       chan *client.Call
+	responder     rpc.RpcResponder
+	handlerFilter filter
+	rpcFilter     filter
 }
 
 func NewProxy(opts ...Option) *Proxy {
@@ -27,8 +29,8 @@ func NewProxy(opts ...Option) *Proxy {
 }
 
 func (r *Proxy) OnInit() {
-	r.ChanCall = make(chan *rpc.Call, r.opts.ChanCallSize)
-	r.ChanRet = make(chan *client.Call, r.opts.ChanRetSize)
+	r.chanCall = make(chan *rpc.Call, r.opts.ChanCallSize)
+	r.chanRet = make(chan *client.Call, r.opts.ChanRetSize)
 }
 
 func (r *Proxy) OnDestroy() {
@@ -72,13 +74,16 @@ func (r *Proxy) Run(closeSig chan bool) {
 		select {
 		case <-closeSig:
 			goto onEnd
-		case ci := <-r.ChanCall:
+		case ci := <-r.chanCall:
 			r.exec(ci)
-		case ri := <-r.ChanRet:
+		case ri := <-r.chanRet:
 			if ri.Error != nil {
 				log.Error("failed to call: %v", ri.Error)
 			} else {
 				args := ri.Args.(*rpc.Args)
+				if r.handlerFilter != nil {
+					r.handlerFilter.After(ri.ServicePath + "." + ri.ServiceMethod, args.MsgId, &args.Session, ri.Reply)
+				}
 				r.responder.Cb(&args.Session, args.MsgId, ri.Reply)
 			}
 		}
@@ -102,15 +107,26 @@ func (r *Proxy) RpcCall(servicePath string, serviceMethod string, args *rpc.Args
 		MsgResp:     reply,
 		Done:        make(chan *client.Call, 1),
 	}
+	if r.rpcFilter != nil {
+		r.rpcFilter.Before(servicePath + "." + serviceMethod, args.MsgId, &args.Session, args.MsgReq)
+	}
 	r.Go(call)
 
 	done := <- call.Done.(chan *client.Call)
+	if r.rpcFilter != nil {
+		r.rpcFilter.After(servicePath + "." + serviceMethod, args.MsgId, &args.Session, done.Reply)
+	}
 	reply = done.Reply
 	return nil
 }
 
 func (r *Proxy) Go(call *rpc.Call) {
-	r.ChanCall <- call
+	if call.Done == nil {
+		if r.handlerFilter != nil {
+			r.handlerFilter.Before(call.ServicePath + "." + call.ServiceName, call.MsgId, call.Session, call.MsgReq)
+		}
+	}
+	r.chanCall <- call
 	//select {
 	//case r.ChanCall <- call:
 	//	// ok
@@ -127,11 +143,21 @@ func (r *Proxy) exec(call *rpc.Call) {
 	}
 
 	xclient := r.pool.Get()
-	c := r.ChanRet
+	c := r.chanRet
 	if call.Done != nil {
 		c = call.Done.(chan *client.Call)
 	}
 	if _,err := xclient.Go(context.TODO(), call.ServicePath, call.ServiceName, args, call.MsgResp, c); err != nil {
 		log.Error("network call error: %v", err)
 	}
+}
+
+// Set a filter for client handler
+func (r *Proxy) SetHandlerFilter(f filter) {
+	r.handlerFilter = f
+}
+
+// Set a filter for rpc
+func (r *Proxy) SetRpcFilter(f filter) {
+	r.rpcFilter = f
 }
