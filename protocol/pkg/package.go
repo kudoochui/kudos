@@ -29,15 +29,20 @@ const (
  *   1 - 3: big-endian body length
  * Body: body length bytes
  */
-func Encode(pkgType int, body []byte) [][]byte {
-	length := len(body)
+func Encode(pkgType int, body ...[]byte) [][]byte {
+	length := 0
+	for i := 0; i < len(body); i++ {
+		length += len(body[i])
+	}
 	head := make([]byte, PKG_HEAD_BYTES)
 	head[0] = byte(pkgType & 0xff)
 	head[1] = byte(length >> 16)
 	head[2] = byte(length >> 8)
 	head[3] = byte(length)
 
-	return [][]byte{head, body}
+	ret := [][]byte{head}
+	ret = append(ret, body...)
+	return ret
 }
 
 /**
@@ -46,8 +51,6 @@ func Encode(pkgType int, body []byte) [][]byte {
  */
 func Decode(buffer []byte) (pkgType int, body []byte) {
 	pkgType = int(buffer[0])
-	var length = uint32(buffer[3]) | uint32(buffer[2])<<8 | uint32(buffer[1])<<16
-	body = make([]byte, length)
-	copy(body, buffer[PKG_HEAD_BYTES:])
+	body = buffer[PKG_HEAD_BYTES:]
 	return
 }

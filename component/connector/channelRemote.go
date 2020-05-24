@@ -22,7 +22,7 @@ func (c *ChannelRemote) PushMessageByGroup(ctx context.Context, args *rpc.ArgsGr
 		if a, err := c.connector.sessions.GetAgent(sid); err == nil {
 			routeId := msgService.GetMsgService().GetRouteId(args.Route)
 			buffer := message.Encode(0, message.TYPE_PUSH, routeId, args.Payload)
-			a.Write(pkg.Encode(pkg.TYPE_DATA, buffer)...)
+			a.Write(pkg.Encode(pkg.TYPE_DATA, buffer...)...)
 		}
 	}
 	return nil
@@ -33,7 +33,7 @@ func (c *ChannelRemote) Broadcast(ctx context.Context, args *rpc.ArgsGroup, repl
 	c.connector.sessions.Range(func(key, value interface{}) bool {
 		routeId := msgService.GetMsgService().GetRouteId(args.Route)
 		buffer := message.Encode(0, message.TYPE_PUSH, routeId, args.Payload)
-		value.(*agent).Write(pkg.Encode(pkg.TYPE_DATA, buffer)...)
+		value.(*agent).Write(pkg.Encode(pkg.TYPE_DATA, buffer...)...)
 		return true
 	})
 	return nil

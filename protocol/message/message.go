@@ -16,7 +16,7 @@ const (
 )
 
 // Message protocol encode.
-func Encode(id int, msgType int, route uint16, msg []byte) []byte {
+func Encode(id int, msgType int, route uint16, msg []byte) [][]byte {
 	idBytes := 0
 	if msgHasId(msgType) {
 		idBytes = caculateMsgIdBytes(id)
@@ -26,7 +26,6 @@ func Encode(id int, msgType int, route uint16, msg []byte) []byte {
 	if msgHasRoute(msgType) {
 		msgLen += MSG_ROUTE_CODE_BYTES
 	}
-	msgLen += len(msg)
 	buffer := make([]byte, msgLen)
 	offset := 0
 
@@ -43,13 +42,11 @@ func Encode(id int, msgType int, route uint16, msg []byte) []byte {
 		offset = encodeMsgRoute(route, buffer, offset)
 	}
 
-	copy(buffer[offset:], msg)
-	return buffer
+	return [][]byte{buffer, msg}
 }
 
 // Message protocol decode.
 func Decode(buffer []byte) (id int, msgType int, route uint16, body []byte){
-	bytesLen := len(buffer)
 	offset := 0
 
 	flag := buffer[offset]
@@ -76,9 +73,7 @@ func Decode(buffer []byte) (id int, msgType int, route uint16, body []byte){
 		offset += 2
 	}
 
-	bodyLen := bytesLen - offset
-	body = make([]byte, bodyLen)
-	copy(body, buffer[offset:])
+	body = buffer[offset:]
 	return
 }
 

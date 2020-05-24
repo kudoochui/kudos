@@ -75,7 +75,7 @@ func (a *agent) WriteMsg(msgId int, msg interface{}) {
 		}
 		//routeId := msgService.GetMsgService().GetRouteId(route)
 		buffer := message.Encode(msgId, message.TYPE_RESPONSE, 0, data)
-		err = a.conn.WriteMsg(pkg.Encode(pkg.TYPE_DATA, buffer)...)
+		err = a.conn.WriteMsg(pkg.Encode(pkg.TYPE_DATA, buffer...)...)
 		if err != nil {
 			log.Error("write message %v error: %v", reflect.TypeOf(msg), err)
 		}
