@@ -35,7 +35,7 @@ func (p *JsonCodec) Unmarshal(route uint16, data []byte) (interface{}, error) {
 	}
 	rr := strings.Split(i.Route, ".")
 	if len(rr) < 2 {
-		log.Error("service format error")
+		log.Error("route format error")
 	}
 	call.ServicePath = rr[0]
 	call.ServiceName = rr[1]
@@ -45,11 +45,6 @@ func (p *JsonCodec) Unmarshal(route uint16, data []byte) (interface{}, error) {
 
 // goroutine safe
 func (p *JsonCodec) Marshal(msg interface{}) ([]byte, error) {
-	//msgType := reflect.TypeOf(msg)
-	//if msgType == nil || msgType.Kind() != reflect.Ptr {
-	//	return nil, errors.New("json message pointer required")
-	//}
-
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	data, err := json.Marshal(msg)
 	return data, err
