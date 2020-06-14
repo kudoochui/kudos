@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/kudoochui/kudos/service/codecService"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -11,7 +12,13 @@ type Args struct {
 }
 
 func (a *Args) GetObject(t interface{}) error {
-	return mapstructure.Decode(a.MsgReq, t)
+	switch a.MsgReq.(type) {
+	case []byte:
+		_codec := codecService.GetCodecService()
+		return _codec.Unmarshal(t, a.MsgReq.([]byte))
+	default:
+		return mapstructure.Decode(a.MsgReq, t)
+	}
 }
 
 type Reply struct {

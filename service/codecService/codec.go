@@ -17,7 +17,7 @@ var once sync.Once
 
 type Codec interface {
 	// must goroutine safe
-	Unmarshal(route uint16, data []byte) (interface{}, error)
+	Unmarshal(obj interface{}, data []byte) error
 	// must goroutine safe
 	Marshal(msg interface{}) ([]byte, error)
 }

@@ -6,9 +6,10 @@ import (
 	"github.com/kudoochui/kudos/protocol/message"
 	"github.com/kudoochui/kudos/protocol/pkg"
 	"github.com/kudoochui/kudos/rpc"
-	"github.com/kudoochui/kudos/service/codecService"
 	"github.com/kudoochui/kudos/service/msgService"
 	"github.com/kudoochui/kudos/utils/timer"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -81,6 +82,7 @@ func (h *agentHandler) handleHeartbeat(pkgType int, body []byte) {
 
 	//heartbeat timeout close the socket
 	h.timerHandler = h.agent.connector.timers.AfterFunc(2*h.agent.connector.opts.HeartbeatTimeout, func() {
+		log.Debug("heart beat overtime")
 		h.agent.Close()
 	})
 }
@@ -89,15 +91,27 @@ func (h *agentHandler) handleData(pkgType int, body []byte) {
 	msgId, msgType, route, data := message.Decode(body)
 	//_ = msgId
 	_ = msgType
-	m, err := codecService.GetCodecService().Unmarshal(route, data)
-	if err != nil {
-		log.Error("unmarshal error: %v", err)
+
+	msgInfo := msgService.GetMsgService().GetMsgByRouteId(route)
+	if msgInfo == nil {
+		log.Error("invalid route id")
 		return
 	}
-	call := m.(*rpc.Call)
+	call := new(rpc.Call)
+	call.MsgReq = data //reflect.New(i.MsgReqType.Elem()).Interface()
+	call.MsgResp = reflect.New(msgInfo.MsgRespType.Elem()).Interface()
+	rr := strings.Split(msgInfo.Route, ".")
+	if len(rr) < 2 {
+		log.Error("route format error")
+		return
+	}
+	call.ServicePath = rr[0]
+	call.ServiceName = rr[1]
+
 	call.MsgId = msgId
 	call.Session = h.agent.session
 	if h.agent.connector.customerRoute != nil {
+		var err error
 		call.ServicePath, err = h.agent.connector.customerRoute(call.Session, call.ServicePath, call.ServiceName)
 		if err != nil {
 			log.Error("customer route error: %v", err)

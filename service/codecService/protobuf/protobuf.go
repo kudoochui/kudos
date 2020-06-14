@@ -1,13 +1,7 @@
 package protobuf
 
 import (
-	"fmt"
 	"github.com/golang/protobuf/proto"
-	"github.com/kudoochui/kudos/rpc"
-	"github.com/kudoochui/kudos/service/msgService"
-	"github.com/siddontang/go/log"
-	"reflect"
-	"strings"
 )
 
 // -------------------------
@@ -29,23 +23,13 @@ func (p *ProtobufCodec) SetByteOrder(littleEndian bool) {
 }
 
 // goroutine safe
-func (p *ProtobufCodec) Unmarshal(route uint16, data []byte) (interface{}, error) {
-	info := msgService.GetMsgService().GetMsgByRouteId(route)
-	if info == nil {
-		return nil, fmt.Errorf("invalid route id")
+func (p *ProtobufCodec) Unmarshal(obj interface{}, data []byte) error {
+	err := proto.UnmarshalMerge(data, obj.(proto.Message))
+	if err != nil {
+		return err
 	}
 
-	call := new(rpc.Call)
-	call.MsgReq = reflect.New(info.MsgReqType.Elem()).Interface()
-	call.MsgResp = reflect.New(info.MsgRespType.Elem()).Interface()
-	proto.UnmarshalMerge(data, call.MsgReq.(proto.Message))
-	rr := strings.Split(info.Route, ".")
-	if len(rr) < 2 {
-		log.Error("route format error")
-	}
-	call.ServicePath = rr[0]
-	call.ServiceName = rr[1]
-	return call, nil
+	return nil
 }
 
 // goroutine safe
