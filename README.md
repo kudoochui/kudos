@@ -31,6 +31,9 @@ kudos是一款基于微服务架构的简洁，高性能，易扩展，易部署
 ## Roadmap
 功能持续开发中
 
+## 部署
+强烈推荐使用k8s部署，只有和k8s结合，才能领略微服务的真谛。
+
 ## 交流
 [wiki](https://github.com/kudoochui/kudos/wiki)
 
