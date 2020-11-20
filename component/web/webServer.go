@@ -10,6 +10,11 @@ import (
 
 type Handler func(http.ResponseWriter, *http.Request)
 
+// ServeHTTP calls f(w, r).
+func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f(w, r)
+}
+
 type WebServer struct {
 	opts		*Options
 	server 		*http.Server
@@ -75,8 +80,7 @@ func (w *WebServer) Run(closeSig chan bool) {
 	<-closeSig
 
 	// Create a deadline to wait for.
-	ctx, cancel := context.WithTimeout(context.Background(), w.opts.CloseTimeout)
-	defer cancel()
+	ctx, _ := context.WithTimeout(context.Background(), w.opts.CloseTimeout)
 	// Doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
 	w.server.Shutdown(ctx)
