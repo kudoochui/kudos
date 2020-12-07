@@ -1,12 +1,15 @@
-package connector
+package pomelo
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/kudos/protocol/message"
-	"github.com/kudoochui/kudos/protocol/pkg"
+	"github.com/kudoochui/kudos/protocol"
+	"github.com/kudoochui/kudos/protocol/pomelo/message"
+	"github.com/kudoochui/kudos/protocol/pomelo/pkg"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/msgService"
+	"github.com/kudoochui/kudos/service/rpcClientService"
 	"github.com/kudoochui/kudos/utils/timer"
 	"reflect"
 	"strings"
@@ -28,17 +31,24 @@ func NewAgentHandler(a *agent) *agentHandler {
 	return &agentHandler{agent:a}
 }
 
-func (h *agentHandler) Handle(pkgType int, body []byte) {
-	switch pkgType {
+func (h *agentHandler) Handle(buffer *bytes.Buffer) {
+	pkgType, body := pkg.Decode(buffer.Bytes())
+	if pkgType == pkg.TYPE_DATA {
+		h.handleData(pkgType, body, buffer)
+		return
+	}
+ 	switch pkgType {
 	case pkg.TYPE_HANDSHAKE:
 		h.handleHandshake(pkgType, body)
 	case pkg.TYPE_HANDSHAKE_ACK:
 		h.handleHandshakeAck(pkgType, body)
 	case pkg.TYPE_HEARTBEAT:
 		h.handleHeartbeat(pkgType, body)
-	case pkg.TYPE_DATA:
-		h.handleData(pkgType, body)
+	//case pkg.TYPE_DATA:
+	//	h.handleData(pkgType, body, buffer)
 	}
+	buffer.Reset()
+	protocol.FreePoolMsg(buffer)
 }
 
 func (h *agentHandler) handleHandshake(pkgType int, body []byte) {
@@ -65,7 +75,7 @@ func (h *agentHandler) handleHandshake(pkgType int, body []byte) {
 
 	bin,_ := json.Marshal(res)
 	buffer := pkg.Encode(pkg.TYPE_HANDSHAKE, bin)
-	h.agent.Write(buffer...)
+	h.agent.Write(buffer)
 }
 
 func (h *agentHandler) handleHandshakeAck(pkgType int, body []byte) {
@@ -74,7 +84,7 @@ func (h *agentHandler) handleHandshakeAck(pkgType int, body []byte) {
 
 func (h *agentHandler) handleHeartbeat(pkgType int, body []byte) {
 	buffer := pkg.Encode(pkg.TYPE_HEARTBEAT, nil)
-	h.agent.Write(buffer...)
+	h.agent.Write(buffer)
 
 	if h.timerHandler != nil {
 		h.agent.connector.timers.ClearTimeout(h.timerHandler)
@@ -87,7 +97,7 @@ func (h *agentHandler) handleHeartbeat(pkgType int, body []byte) {
 	})
 }
 
-func (h *agentHandler) handleData(pkgType int, body []byte) {
+func (h *agentHandler) handleData(pkgType int, body []byte, buffer *bytes.Buffer) {
 	msgId, msgType, route, data := message.Decode(body)
 	//_ = msgId
 	_ = msgType
@@ -97,33 +107,42 @@ func (h *agentHandler) handleData(pkgType int, body []byte) {
 		log.Error("invalid route id")
 		return
 	}
-	call := new(rpc.Call)
-	call.MsgReq = data //reflect.New(i.MsgReqType.Elem()).Interface()
-	call.MsgResp = reflect.New(msgInfo.MsgRespType.Elem()).Interface()
+
+	args := &rpc.Args{
+		Session: *h.agent.session,
+		MsgId: msgId,
+		MsgReq:  data,
+	}
+
+	msgResp := reflect.New(msgInfo.MsgRespType.Elem()).Interface()
 	rr := strings.Split(msgInfo.Route, ".")
 	if len(rr) < 2 {
 		log.Error("route format error")
 		return
 	}
-	call.ServicePath = rr[0]
-	call.ServiceName = rr[1]
+	servicePath := rr[0]
+	serviceName := rr[1]
 
-	call.MsgId = msgId
-	call.Session = h.agent.session
 	if h.agent.connector.customerRoute != nil {
 		var err error
-		call.ServicePath, err = h.agent.connector.customerRoute(call.Session, call.ServicePath, call.ServiceName)
+		servicePath, err = h.agent.connector.customerRoute(h.agent.session, servicePath, serviceName)
 		if err != nil {
 			log.Error("customer route error: %v", err)
 			reply := &rpc.Reply{
 				Code:    CODE_USE_ERROR,
 				ErrMsg:  err.Error(),
 			}
-			h.agent.WriteMsg(msgId, reply)
+			h.agent.WriteResponse(msgId, reply)
 			return
 		}
 	}
-	h.agent.connector.route.Go(call)
+	if h.agent.connector.handlerFilter != nil {
+		h.agent.connector.handlerFilter.Before(servicePath+"."+serviceName, args)
+	}
+	//h.agent.connector.proxy.Go(servicePath, serviceName, args, msgResp, h.agent.chanRet)
+	rpcClientService.GetRpcClientService().Go(servicePath, serviceName, args, msgResp, h.agent.chanRet)
+	buffer.Reset()
+	protocol.FreePoolMsg(buffer)
 }
 
 func (h *agentHandler) processError(code int){
@@ -131,5 +150,5 @@ func (h *agentHandler) processError(code int){
 	r["code"] = code
 	bin,_ := json.Marshal(r)
 	buffer := pkg.Encode(pkg.TYPE_HANDSHAKE, bin)
-	h.agent.Write(buffer...)
+	h.agent.Write(buffer)
 }

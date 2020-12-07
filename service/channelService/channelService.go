@@ -4,6 +4,7 @@ import (
 	"github.com/kudoochui/kudos/log"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/codecService"
+	"github.com/kudoochui/kudos/service/rpcClientService"
 	"sync"
 )
 
@@ -42,7 +43,7 @@ func (c *ChannelService) GetChannel(name string) *Channel {
 	return nil
 }
 
-func (c *ChannelService) PushMessageBySid(nodeAddr string, route string, msg interface{}, sids []int64) {
+func (c *ChannelService) PushMessageBySid(nodeId string, route string, msg interface{}, sids []int64) {
 	data, err := codecService.GetCodecService().Marshal(msg)
 	if err != nil {
 		log.Error("marshal error: %v", err)
@@ -53,10 +54,10 @@ func (c *ChannelService) PushMessageBySid(nodeAddr string, route string, msg int
 		Payload:  data,
 	}
 	reply := &rpc.ReplyGroup{}
-	rpc.RpcInvoke(nodeAddr, "ChannelRemote", "PushMessageByGroup", args, reply)
+	rpcClientService.GetRpcClientService().Call(nodeId+"@ChannelRemote","PushMessageByGroup", args, reply)
 }
 
-func (c *ChannelService) AsyncPushMessageBySid(nodeAddr string, route string, msg interface{}, sids []int64) {
+func (c *ChannelService) AsyncPushMessageBySid(nodeId string, route string, msg interface{}, sids []int64) {
 	data, err := codecService.GetCodecService().Marshal(msg)
 	if err != nil {
 		log.Error("marshal error: %v", err)
@@ -67,10 +68,10 @@ func (c *ChannelService) AsyncPushMessageBySid(nodeAddr string, route string, ms
 		Payload:  data,
 	}
 	reply := &rpc.ReplyGroup{}
-	rpc.RpcGo(nodeAddr, "ChannelRemote", "PushMessageByGroup", args, reply)
+	rpcClientService.GetRpcClientService().Go(nodeId+"@ChannelRemote","PushMessageByGroup", args, reply, nil)
 }
 
-func (c *ChannelService) Broadcast(nodeAddr string, route string, msg interface{}) {
+func (c *ChannelService) Broadcast(nodeId string, route string, msg interface{}) {
 	data, err := codecService.GetCodecService().Marshal(msg)
 	if err != nil {
 		log.Error("marshal error: %v", err)
@@ -81,5 +82,5 @@ func (c *ChannelService) Broadcast(nodeAddr string, route string, msg interface{
 		Payload:  data,
 	}
 	reply := &rpc.ReplyGroup{}
-	rpc.RpcGo(nodeAddr, "ChannelRemote", "Broadcast", args, reply)
+	rpcClientService.GetRpcClientService().Go(nodeId+"@ChannelRemote","Broadcast", args, reply, nil)
 }

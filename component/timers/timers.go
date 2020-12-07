@@ -26,17 +26,19 @@ func (t *Timers) OnDestroy() {
 
 }
 
-func (t *Timers) Run(closeSig chan bool) {
-	t.dispatcher = timer.NewDispatcher(t.opts.TimerDispatcherLen)
+func (t *Timers) OnRun(closeSig chan bool) {
+	go func() {
+		t.dispatcher = timer.NewDispatcher(t.opts.TimerDispatcherLen)
 
-	for {
-		select {
-		case <-closeSig:
-			return
-		case tt := <-t.dispatcher.ChanTimer:
-			tt.Cb()
+		for {
+			select {
+			case <-closeSig:
+				return
+			case tt := <-t.dispatcher.ChanTimer:
+				tt.Cb()
+			}
 		}
-	}
+	}()
 }
 
 func (t *Timers) AfterFunc(d time.Duration, cb func()) *timer.Timer {

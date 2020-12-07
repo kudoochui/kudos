@@ -1,4 +1,4 @@
-package connector
+package pomelo
 
 import (
 	"time"
@@ -8,7 +8,6 @@ type Option func(*Options)
 
 type Options struct {
 	MaxConnNum      int
-	PendingWriteNum int
 	MaxMsgLen       uint32
 	HeartbeatTimeout 	time.Duration
 
@@ -27,10 +26,9 @@ type Options struct {
 func newOptions(opts...Option) *Options {
 	opt := &Options{
 		MaxConnNum:      20000,
-		PendingWriteNum: 200,
 		MaxMsgLen:       4096,
 		HTTPTimeout:     10 * time.Second,
-		HeartbeatTimeout: 10 * time.Second,
+		HeartbeatTimeout: 20 * time.Second,
 		LenMsgLen:       2,
 		LittleEndian:    false,
 	}
@@ -46,13 +44,6 @@ func newOptions(opts...Option) *Options {
 func MaxConnNum(num int) Option {
 	return func(options *Options) {
 		options.MaxConnNum = num
-	}
-}
-
-// Length of connection write chan. Default is 200. If pending write too much, it will close connection.
-func PendingWriteNum(num int) Option {
-	return func(options *Options) {
-		options.PendingWriteNum = num
 	}
 }
 

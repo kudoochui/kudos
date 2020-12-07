@@ -2,6 +2,7 @@ package sessionService
 
 import (
 	"github.com/kudoochui/kudos/rpc"
+	"github.com/kudoochui/kudos/service/rpcClientService"
 	"sync"
 )
 
@@ -20,11 +21,11 @@ type SessionService struct {
 
 }
 
-func (s *SessionService) KickBySid(nodeAddr string, sid int64, reason string) {
+func (s *SessionService) KickBySid(nodeId string, sid int64, reason string) {
 	args := &rpc.Args{
 		Session: rpc.Session{SessionId:sid},
 		MsgReq: reason,
 	}
 	reply := &rpc.Reply{}
-	rpc.RpcInvoke(nodeAddr, "SessionRemote", "KickBySid", args, reply)
+	rpcClientService.GetRpcClientService().Call(nodeId+"@SessionRemote","KickBySid", args, reply)
 }

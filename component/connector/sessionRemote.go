@@ -3,17 +3,17 @@ package connector
 import (
 	"context"
 	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/kudos/protocol/pkg"
+	"github.com/kudoochui/kudos/protocol/pomelo/pkg"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/codecService"
 	"runtime"
 )
 
 type SessionRemote struct {
-	connector	*Connector
+	connector	Connector
 }
 
-func NewSessionRemote(c *Connector) *SessionRemote {
+func NewSessionRemote(c Connector) *SessionRemote {
 	return &SessionRemote{
 		connector: c,
 	}
@@ -21,7 +21,7 @@ func NewSessionRemote(c *Connector) *SessionRemote {
 
 func (s *SessionRemote) Bind(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
 	sessioinId := args.Session.GetSessionId()
-	agent,err := s.connector.sessions.GetAgent(sessioinId)
+	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("Bind can't find session:%s", sessioinId)
 		return nil
@@ -33,7 +33,7 @@ func (s *SessionRemote) Bind(ctx context.Context, args *rpc.Args, reply *rpc.Rep
 
 func (s *SessionRemote) UnBind(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
 	sessioinId := args.Session.GetSessionId()
-	agent,err := s.connector.sessions.GetAgent(sessioinId)
+	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("UnBind can't find session:%s", sessioinId)
 		return nil
@@ -45,7 +45,7 @@ func (s *SessionRemote) UnBind(ctx context.Context, args *rpc.Args, reply *rpc.R
 
 func (s *SessionRemote) Push(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
 	sessioinId := args.Session.GetSessionId()
-	agent,err := s.connector.sessions.GetAgent(sessioinId)
+	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("Push can't find session:%s", sessioinId)
 		return nil
@@ -58,7 +58,7 @@ func (s *SessionRemote) Push(ctx context.Context, args *rpc.Args, reply *rpc.Rep
 
 func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
 	sessioinId := args.Session.GetSessionId()
-	agent,err := s.connector.sessions.GetAgent(sessioinId)
+	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("KickBySid can't find session:%s", sessioinId)
 		return err
@@ -68,7 +68,7 @@ func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rp
 		"reason": reason,
 	}
 	buffer,_ := codecService.GetCodecService().Marshal(ret)
-	agent.Write(pkg.Encode(pkg.TYPE_KICK, buffer)...)
+	agent.Write(pkg.Encode(pkg.TYPE_KICK, buffer))
 
 	runtime.Gosched()
 	agent.Close()
@@ -76,7 +76,7 @@ func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rp
 }
 
 func (s *SessionRemote) GetSessionCount(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
-	count := s.connector.sessions.GetSessionCount()
+	count := s.connector.GetSessionMap().GetSessionCount()
 	reply.MsgResp = count
 	return nil
 }

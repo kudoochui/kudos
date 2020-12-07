@@ -2,7 +2,6 @@ package network
 
 import (
 	"net"
-	"github.com/kudoochui/kudos/log"
 	"sync"
 )
 
@@ -72,11 +71,11 @@ func (tcpConn *TCPConn) Close() {
 }
 
 func (tcpConn *TCPConn) doWrite(b []byte) {
-	if len(tcpConn.writeChan) == cap(tcpConn.writeChan) {
-		log.Debug("close conn: channel full")
-		tcpConn.doDestroy()
-		return
-	}
+	//if len(tcpConn.writeChan) == cap(tcpConn.writeChan) {
+	//	log.Debug("close conn: channel full")
+	//	tcpConn.doDestroy()
+	//	return
+	//}
 
 	tcpConn.writeChan <- b
 }

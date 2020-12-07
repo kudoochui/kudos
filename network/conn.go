@@ -1,14 +1,14 @@
 package network
 
 import (
+	"bytes"
 	"net"
 )
 
 type Conn interface {
-	ReadMsg() ([]byte, error)
-	WriteMsg(args ...[]byte) error
+	ReadMsg(buf *bytes.Buffer) error
+	WriteMessage(buf []byte) error
 	LocalAddr() net.Addr
 	RemoteAddr() net.Addr
 	Close()
-	Destroy()
 }

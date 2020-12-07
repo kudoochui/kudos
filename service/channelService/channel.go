@@ -5,6 +5,7 @@ import (
 	"github.com/kudoochui/kudos/log"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/codecService"
+	"github.com/kudoochui/kudos/service/rpcClientService"
 	"github.com/kudoochui/kudos/utils/array"
 	"sync"
 )
@@ -34,12 +35,12 @@ func (c *Channel) Add(s *rpc.Session) error {
 	}
 	c.group[s.GetUserId()] = s.Clone()
 
-	a := c.nodeMap[s.NodeAddr]
+	a := c.nodeMap[s.NodeId]
 	if a != nil {
-		c.nodeMap[s.NodeAddr] = append(a, s.GetSessionId())
+		c.nodeMap[s.NodeId] = append(a, s.GetSessionId())
 	} else {
 		a = make([]int64,0)
-		c.nodeMap[s.NodeAddr] = append(a, s.GetSessionId())
+		c.nodeMap[s.NodeId] = append(a, s.GetSessionId())
 	}
 	return nil
 }
@@ -53,8 +54,8 @@ func (c *Channel) Leave(uid int64)  {
 	if s == nil {
 		return
 	}
-	if a, ok := c.nodeMap[s.NodeAddr]; ok {
-		c.nodeMap[s.NodeAddr] = array.PullInt64(a, s.GetSessionId())
+	if a, ok := c.nodeMap[s.NodeId]; ok {
+		c.nodeMap[s.NodeId] = array.PullInt64(a, s.GetSessionId())
 	}
 
 	delete(c.group, uid)
@@ -83,8 +84,8 @@ func (c *Channel) GetSessions() map[int64]*rpc.Session {
 	return m
 }
 
-// Push message to all the members in the channel
-func (c *Channel) PushMessage(route string, msg interface{}) {
+// Push message to all the members in the channel, exclude uid in the excludeUid.
+func (c *Channel) PushMessage(route string, msg interface{}, excludeUid []int64) {
 	data, err := codecService.GetCodecService().Marshal(msg)
 	if err != nil {
 		log.Error("marshal error: %v", err)
@@ -97,15 +98,25 @@ func (c *Channel) PushMessage(route string, msg interface{}) {
 		copy(w, v)
 		nodeMap[k] = w
 	}
+
+	if len(excludeUid) > 0 {
+		for _,uid := range excludeUid {
+			if s,ok := c.group[uid]; ok {
+				if a, ok := nodeMap[s.NodeId]; ok {
+					nodeMap[s.NodeId] = array.PullInt64(a, s.GetSessionId())
+				}
+			}
+		}
+	}
 	c.lock.RUnlock()
 
-	for addr, sids := range nodeMap {
+	for nodeId, sids := range nodeMap {
 		args := &rpc.ArgsGroup{
 			Sids:    sids,
 			Route: 	 route,
 			Payload:  data,
 		}
 		reply := &rpc.ReplyGroup{}
-		rpc.RpcGo(addr, "ChannelRemote", "PushMessageByGroup", args, reply)
+		rpcClientService.GetRpcClientService().Go(nodeId+"@ChannelRemote","PushMessageByGroup", args, reply, nil)
 	}
 }

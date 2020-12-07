@@ -1,22 +1,30 @@
-# kudos
-kudos是一款基于微服务架构的简洁，高性能，易扩展，易部署的分布式游戏服务框架。基于rpcx的rpc，支持pomelo通信协议，轻松应用于游戏开发。
+# Kudos
+Kudos is a simple, high-performance, easy to expand and easy to deploy distributed game service framework
+based on microservice architecture, It is based on RPC of rpcx, supports pomelo communication protocol and
+can be easily applied to game development.
 
 
-## 特点
-- **简单**：容易上手，游戏开发需要基本组件和服务都已集成，直接调用。对于熟悉pomelo的特别友好。
-- **组件化**：功能分为一个个组件，按需要加载。
-- **分布式**：可以分成多个节点分布式部署，也可以打包一起作为一个进程部署。
-- **微服务架构，支持服务发现**：consul，etcd，zookeeper等主流注册中心。
-- **基于rpcx的rpc**：rpcx是一款高性能的rpc框架。其性能远远高于 Dubbo、Motan、Thrift等框架，是gRPC性能的两倍。支持服务治理。更多功能请参考：[http://rpcx.io](http://rpcx.io/)
-- **跨语言**：除go外，还可以访问其它语言实现的节点服务。得益于rpcx。
-- **支持pomelo通信协议**：该协议广泛用于各种游戏开发中，支持多端，多种语言版本。
-- **易部署**：各服务器独立，无依赖，可以单独启动。
+## Features
+-**Easy to use**: Game development requires that basic components and services have been integrated and called directly. Especially friendly to those who are familiar with pomelo.
 
-## 安装
+-**Componentization**: The functions are divided into components and loaded as required.
 
+-**Distributed**: It can be deployed in multiple nodes or packaged together as a process.
+
+-**Microservice architecture, supporting service discovery**: Mainstream registries such as consult, etcd, zookeeper, etc.
+
+-**RPC based on rpcx**: rpcx is a high-performance RPC framework. Its performance is much higher than Dubbo, Motan, thrift and other frameworks, which is twice the performance of grpc. Support service governance. For more functions, please refer to:[ http://rpcx.io ] http://rpcx.io/ )
+
+-**Cross language**: In addition to go, you can also access node services implemented in other languages. Thanks to rpcx.
+
+-**Support pomelo communication protocol**: The protocol is widely used in various game development, supporting multi terminal and multi language versions.
+
+-**Easy to deploy**: Each server is independent and independent and can be started independently.
+
+## Installation
 `go get -u -v github.com/kudoochui/kudos`
 
-## 开发脚手架(示例)
+## Getting started(开发脚手架)
 [kudosServer](https://github.com/kudoochui/kudosServer)
 
 ## 游戏架构参考
@@ -29,12 +37,10 @@ kudos是一款基于微服务架构的简洁，高性能，易扩展，易部署
 [游戏微服务架构设计：io游戏](https://www.toutiao.com/i6798815271386612231/)
 
 ## Roadmap
-功能持续开发中
+- Add more connector
+- Actor support
 
-## 部署
-强烈推荐使用k8s部署，只有和k8s结合，才能领略微服务的真谛。
-
-## 交流
+## Community
 [wiki](https://github.com/kudoochui/kudos/wiki)
 
 QQ交流群：77584553

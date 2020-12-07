@@ -48,10 +48,14 @@ func (w *WebServer) OnInit() {
 }
 
 func (w *WebServer) OnDestroy() {
-
+	// Create a deadline to wait for.
+	ctx, _ := context.WithTimeout(context.Background(), w.opts.CloseTimeout)
+	// Doesn't block if no connections, but will otherwise wait
+	// until the timeout deadline.
+	w.server.Shutdown(ctx)
 }
 
-func (w *WebServer) Run(closeSig chan bool) {
+func (w *WebServer) OnRun(closeSig chan bool) {
 	w.router = mux.NewRouter()
 	for p,f := range w.routeMap {
 		w.router.HandleFunc(p, f)
@@ -76,12 +80,4 @@ func (w *WebServer) Run(closeSig chan bool) {
 			log.Info("web server: %s", err)
 		}
 	}()
-
-	<-closeSig
-
-	// Create a deadline to wait for.
-	ctx, _ := context.WithTimeout(context.Background(), w.opts.CloseTimeout)
-	// Doesn't block if no connections, but will otherwise wait
-	// until the timeout deadline.
-	w.server.Shutdown(ctx)
 }

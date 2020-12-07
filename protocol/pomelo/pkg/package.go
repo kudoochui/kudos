@@ -1,5 +1,7 @@
 package pkg
 
+import "github.com/kudoochui/kudos/protocol"
+
 const (
 	TYPE_NULL = iota
 	TYPE_HANDSHAKE			//1
@@ -29,20 +31,26 @@ const (
  *   1 - 3: big-endian body length
  * Body: body length bytes
  */
-func Encode(pkgType int, body ...[]byte) [][]byte {
+func Encode(pkgType int, body []byte) *[]byte {
 	length := 0
-	for i := 0; i < len(body); i++ {
-		length += len(body[i])
+	var buffer *[]byte
+	if pkgType == TYPE_DATA {
+		length = len(body) - PKG_HEAD_BYTES
+		buffer = &body
+		(*buffer)[0] = byte(pkgType & 0xff)
+		(*buffer)[1] = byte(length >> 16)
+		(*buffer)[2] = byte(length >> 8)
+		(*buffer)[3] = byte(length)
+	} else {
+		length = len(body)
+		buffer = protocol.GetPoolBuffer(length + PKG_HEAD_BYTES)
+		(*buffer)[0] = byte(pkgType & 0xff)
+		(*buffer)[1] = byte(length >> 16)
+		(*buffer)[2] = byte(length >> 8)
+		(*buffer)[3] = byte(length)
+		copy((*buffer)[PKG_HEAD_BYTES:], body)
 	}
-	head := make([]byte, PKG_HEAD_BYTES)
-	head[0] = byte(pkgType & 0xff)
-	head[1] = byte(length >> 16)
-	head[2] = byte(length >> 8)
-	head[3] = byte(length)
-
-	ret := [][]byte{head}
-	ret = append(ret, body...)
-	return ret
+	return buffer
 }
 
 /**

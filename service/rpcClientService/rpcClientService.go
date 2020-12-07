@@ -1,17 +1,17 @@
-package proxy
+package rpcClientService
 
 import (
 	"context"
-	"github.com/kudoochui/kudos/component"
 	"github.com/kudoochui/kudos/filter"
 	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/rpcx/client"
 	"sync"
 )
 
-// It is deprecated. Use RpcClientService instead
-type Proxy struct {
+var _rpcClientService *RpcClientService
+var once sync.Once
+
+type RpcClientService struct {
 	opts 			*Options
 
 	rpcClient 		*client.OneClient
@@ -19,23 +19,20 @@ type Proxy struct {
 	rpcFilter     	filter.Filter
 }
 
-func NewProxy(opts ...Option) *Proxy {
+func GetRpcClientService() *RpcClientService {
+	once.Do(func() {
+		_rpcClientService = &RpcClientService{
+
+		}
+	})
+
+	return _rpcClientService
+}
+
+
+func (r *RpcClientService) Initialize(opts ...Option) {
 	options := newOptions(opts...)
-
-	return &Proxy{
-		opts:      options,
-	}
-}
-
-func (r *Proxy) OnInit(s component.ServerImpl) {
-
-}
-
-func (r *Proxy) OnDestroy() {
-
-}
-
-func (r *Proxy) OnRun(closeSig chan bool) {
+	r.opts = options
 	var d client.ServiceDiscovery
 	switch r.opts.RegistryType {
 	case "consul":
@@ -69,28 +66,31 @@ func (r *Proxy) OnRun(closeSig chan bool) {
 	r.lock.Unlock()
 }
 
-func (r *Proxy) Call(servicePath string, serviceMethod string, args *rpc.Args, reply interface{}) error {
+func (r *RpcClientService) Call(servicePath string, serviceMethod string, args interface{}, reply interface{}) error {
 	if r.rpcFilter != nil {
 		r.rpcFilter.Before(servicePath + "." + serviceMethod, args)
 	}
 	r.lock.RLock()
 	err := r.rpcClient.Call(context.TODO(), servicePath, serviceMethod, args, reply)
+	if err != nil {
+		log.Error("rpc call error: %v", err)
+	}
 	r.lock.RUnlock()
 	if r.rpcFilter != nil {
-		r.rpcFilter.After(servicePath + "." + serviceMethod,reply)
+		r.rpcFilter.After(servicePath + "." + serviceMethod, reply)
 	}
 	return err
 }
 
-func (r *Proxy) Go(servicePath string, serviceMethod string, args *rpc.Args, reply interface{}, chanRet chan *client.Call) {
+func (r *RpcClientService) Go(servicePath string, serviceMethod string, args interface{}, reply interface{}, chanRet chan *client.Call) {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 	if _,err := r.rpcClient.Go(context.TODO(),servicePath, serviceMethod, args, reply, chanRet); err != nil {
-		log.Error("rpc call error: %v", err)
+		log.Error("rpc go error: %v", err)
 	}
 }
 
 // Set a filter for rpc
-func (r *Proxy) SetRpcFilter(f filter.Filter) {
+func (r *RpcClientService) SetRpcFilter(f filter.Filter) {
 	r.rpcFilter = f
 }

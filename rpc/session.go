@@ -2,11 +2,12 @@ package rpc
 
 import (
 	"github.com/kudoochui/kudos/service/idService"
+	"github.com/kudoochui/kudos/service/rpcClientService"
 	"sync"
 )
 
 type Session struct {
-	NodeAddr	string
+	NodeId	string
 	SessionId	int64
 
 	UserId 		int64
@@ -15,9 +16,9 @@ type Session struct {
 	Settings	map[string]string
 }
 
-func NewSession(nodeAddr string) *Session  {
+func NewSession(nodeId string) *Session  {
 	return &Session{
-		NodeAddr:  nodeAddr,
+		NodeId: nodeId,
 		SessionId: idService.GenerateID().Int64(),
 		Settings:  map[string]string{},
 	}
@@ -55,7 +56,7 @@ func (s *Session) Bind(userId int64) {
 		MsgReq:  userId,
 	}
 	reply := &Reply{}
-	RpcInvoke(s.NodeAddr, "SessionRemote","Bind", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","Bind", args, reply)
 }
 
 func (s *Session) UnBind() {
@@ -65,7 +66,7 @@ func (s *Session) UnBind() {
 		Session: *s,
 	}
 	reply := &Reply{}
-	RpcInvoke(s.NodeAddr, "SessionRemote","UnBind", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","UnBind", args, reply)
 }
 
 func (s *Session) Get(key string) string {
@@ -85,7 +86,7 @@ func (s *Session) Remove(key string) {
 
 func (s *Session) Clone() *Session {
 	session := &Session{
-		NodeAddr:   s.NodeAddr,
+		NodeId:   s.NodeId,
 		SessionId:  s.SessionId,
 		UserId:     s.UserId,
 		Settings:   map[string]string{},
@@ -104,7 +105,7 @@ func (s *Session) Push(){
 		MsgReq: s.Settings,
 	}
 	reply := &Reply{}
-	RpcInvoke(s.NodeAddr, "SessionRemote", "Push", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","Push", args, reply)
 }
 
 func (s *Session) Close(reason string) {
@@ -113,5 +114,5 @@ func (s *Session) Close(reason string) {
 		MsgReq: reason,
 	}
 	reply := &Reply{}
-	RpcInvoke(s.NodeAddr, "SessionRemote", "KickBySid", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","KickBySid", args, reply)
 }

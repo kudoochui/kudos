@@ -1,11 +1,12 @@
 package component
 
 type Component interface {
-	OnInit()
+	OnInit(ServerImpl)
 	OnDestroy()
-	Run(closeSig chan bool)
+	OnRun(closeSig chan bool)
 }
 
 type ServerImpl interface {
-	GetComponent() Component
+	GetServerId() string
+	GetComponent(string) Component
 }

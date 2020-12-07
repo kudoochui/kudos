@@ -1,6 +1,10 @@
 package message
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/kudoochui/kudos/protocol"
+	"github.com/kudoochui/kudos/protocol/pomelo/pkg"
+)
 
 const (
 	TYPE_REQUEST = iota
@@ -16,7 +20,7 @@ const (
 )
 
 // Message protocol encode.
-func Encode(id int, msgType int, route uint16, msg []byte) [][]byte {
+func Encode(id int, msgType int, route uint16, msg []byte) []byte {
 	idBytes := 0
 	if msgHasId(msgType) {
 		idBytes = caculateMsgIdBytes(id)
@@ -26,23 +30,25 @@ func Encode(id int, msgType int, route uint16, msg []byte) [][]byte {
 	if msgHasRoute(msgType) {
 		msgLen += MSG_ROUTE_CODE_BYTES
 	}
-	buffer := make([]byte, msgLen)
+
+	buffer := protocol.GetPoolBuffer(msgLen + len(msg) + pkg.PKG_HEAD_BYTES)
 	offset := 0
 
 	// add flag
-	offset = encodeMsgFlag(msgType, buffer, offset)
+	offset = encodeMsgFlag(msgType, (*buffer)[pkg.PKG_HEAD_BYTES:], offset)
 
 	// add message id
 	if msgHasId(msgType) {
-		offset = encodeMsgId(id, idBytes, buffer, offset)
+		offset = encodeMsgId(id, idBytes, (*buffer)[pkg.PKG_HEAD_BYTES:], offset)
 	}
 
 	// add route
 	if msgHasRoute(msgType) {
-		offset = encodeMsgRoute(route, buffer, offset)
+		offset = encodeMsgRoute(route, (*buffer)[pkg.PKG_HEAD_BYTES:], offset)
 	}
+	copy((*buffer)[pkg.PKG_HEAD_BYTES+msgLen:], msg)
 
-	return [][]byte{buffer, msg}
+	return *buffer
 }
 
 // Message protocol decode.

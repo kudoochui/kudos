@@ -13,7 +13,6 @@ import (
 type WSServer struct {
 	Addr            string
 	MaxConnNum      int
-	PendingWriteNum int
 	MaxMsgLen       uint32
 	HTTPTimeout     time.Duration
 	CertFile        string
@@ -86,10 +85,6 @@ func (server *WSServer) Start() {
 		server.MaxConnNum = 100
 		log.Warning("invalid MaxConnNum, reset to %v", server.MaxConnNum)
 	}
-	if server.PendingWriteNum <= 0 {
-		server.PendingWriteNum = 100
-		log.Warning("invalid PendingWriteNum, reset to %v", server.PendingWriteNum)
-	}
 	if server.MaxMsgLen <= 0 {
 		server.MaxMsgLen = 4096
 		log.Warning("invalid MaxMsgLen, reset to %v", server.MaxMsgLen)
@@ -119,7 +114,6 @@ func (server *WSServer) Start() {
 	server.ln = ln
 	server.handler = &WSHandler{
 		maxConnNum:      server.MaxConnNum,
-		pendingWriteNum: server.PendingWriteNum,
 		maxMsgLen:       server.MaxMsgLen,
 		newAgent:        server.NewAgent,
 		conns:           make(WebsocketConnSet),

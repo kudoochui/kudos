@@ -2,6 +2,7 @@ package connector
 
 import (
 	"github.com/kudoochui/kudos/utils/timer"
+	"sync"
 	"time"
 )
 
@@ -11,6 +12,8 @@ type Timers struct {
 	timerDispatcherLen int
 	chanJob		chan *TimeJob
 	chanStop	chan *timer.Timer
+	closed 		bool
+	lock 		sync.RWMutex
 }
 
 func NewTimer() *Timers {
@@ -34,6 +37,9 @@ func (t *Timers) RunTimer(closeSig chan bool) {
 	for {
 		select {
 		case <-closeSig:
+			t.lock.Lock()
+			t.closed = true
+			t.lock.Unlock()
 			return
 		case tt := <-t.dispatcher.ChanTimer:
 			tt.Cb()
@@ -53,13 +59,31 @@ func (t *Timers) work(job *TimeJob) {
 }
 
 func (t *Timers) AfterFunc(d time.Duration, cb func()) *timer.Timer {
+	t.lock.RLock()
+	if t.closed {
+		t.lock.RUnlock()
+		return nil
+	}
+	t.lock.RUnlock()
 	return t.dispatcher.AfterFunc(d, cb)
 }
 
 func (t *Timers) CronFunc(cronExpr *timer.CronExpr, cb func()) *timer.Cron {
+	t.lock.RLock()
+	if t.closed {
+		t.lock.RUnlock()
+		return nil
+	}
+	t.lock.RUnlock()
 	return t.dispatcher.CronFunc(cronExpr, cb)
 }
 
 func (t *Timers) ClearTimeout(handler *timer.Timer){
+	t.lock.RLock()
+	if t.closed {
+		t.lock.RUnlock()
+		return
+	}
+	t.lock.RUnlock()
 	t.chanStop <- handler
 }

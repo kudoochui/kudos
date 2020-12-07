@@ -27,32 +27,17 @@ type Reply struct {
 	MsgResp interface{}
 }
 
-type Call struct {
-	Session *Session
-	MsgId 	int
-	ServicePath string
-	ServiceName string
-	MsgReq interface{}
-	MsgResp interface{}
-	Done 	interface{}
+// Group message request
+type ArgsGroup struct {
+	Sids 	[]int64
+	Route 	string
+	Payload []byte
 }
 
-// agent route msg to proxy
-type RpcRouter interface {
-	Go(call *Call)
+// Group message response
+type ReplyGroup struct {
+
 }
 
 // Route msg to the specified node
 type CustomerRoute func(session *Session, servicePath, serviceName string) (string, error)
-
-// proxy return msg to agent
-type RpcResponder interface {
-	Cb(session *Session, msgId int, msg interface{})
-}
-
-// register msg handler as service
-type HandlerRegister interface {
-	GetRemoteAddrs() string
-	RegisterHandler(rcvr interface{}, metadata string) error
-	RegisterName(name string, rcvr interface{}, metadata string) error
-}

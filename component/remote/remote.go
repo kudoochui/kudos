@@ -3,12 +3,13 @@ package remote
 import (
 	"context"
 	"fmt"
+	"github.com/kudoochui/kudos/component"
 	"github.com/kudoochui/kudos/log"
-	"reflect"
-	"time"
-	metrics "github.com/rcrowley/go-metrics"
 	"github.com/kudoochui/rpcx/server"
 	"github.com/kudoochui/rpcx/serverplugin"
+	metrics "github.com/rcrowley/go-metrics"
+	"reflect"
+	"time"
 )
 
 type Remote struct {
@@ -29,28 +30,24 @@ func NewRemote(opts ...Option) *Remote {
 	}
 }
 
-func (r *Remote) OnInit() {
+func (r *Remote) OnInit(s component.ServerImpl) {
 	r.server = server.NewServer()
 	r.addRegistryPlugin()
 }
 
 func (r *Remote) OnDestroy() {
-
+	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	defer cancel()
+	r.server.Shutdown(ctx)
 }
 
-func (r *Remote) Run(closeSig chan bool) {
+func (r *Remote) OnRun(closeSig chan bool) {
 	go func() {
 		err := r.server.Serve("tcp", r.opts.Addr)
 		if err != nil {
 			log.Info("rpcx serve %v", err)
 		}
 	}()
-
-	<- closeSig
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
-	defer cancel()
-	r.server.Shutdown(ctx)
 }
 
 func (r *Remote) GetRemoteAddrs() string {

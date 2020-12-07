@@ -7,34 +7,34 @@ import (
 )
 
 // goroutine safe
-type sessionMap struct {
+type SessionMap struct {
 	sessions sync.Map
 	counter int32
 }
 
-func (s *sessionMap) AddSession(a *agent)  {
-	s.sessions.Store(a.session.GetSessionId(), a)
+func (s *SessionMap) AddSession(a Agent)  {
+	s.sessions.Store(a.GetSession().GetSessionId(), a)
 	atomic.AddInt32(&s.counter, 1)
 }
 
-func (s *sessionMap) DelSession(a *agent) {
-	s.sessions.Delete(a.session.GetSessionId())
+func (s *SessionMap) DelSession(a Agent) {
+	s.sessions.Delete(a.GetSession().GetSessionId())
 	atomic.AddInt32(&s.counter, -1)
 }
 
-func (s *sessionMap) GetAgent(sessionId int64) (*agent, error) {
+func (s *SessionMap) GetAgent(sessionId int64) (Agent, error) {
 	a, ok := s.sessions.Load(sessionId)
 	if !ok || a == nil {
 		return nil, errors.New("No Sesssion found")
 	}
-	return a.(*agent), nil
+	return a.(Agent), nil
 }
 
-func (s *sessionMap) Range(f func(k,v interface{})bool) {
+func (s *SessionMap) Range(f func(k,v interface{})bool) {
 	s.sessions.Range(f)
 }
 
-func (s *sessionMap) GetSessionCount() int32 {
+func (s *SessionMap) GetSessionCount() int32 {
 	return atomic.LoadInt32(&s.counter)
 }
 
