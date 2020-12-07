@@ -22,5 +22,3 @@ require (
 	google.golang.org/grpc/examples v0.0.0-20201125005357-44e408dab41e // indirect
 	gotest.tools v2.2.0+incompatible
 )
-
-replace github.com/kudoochui/rpcx v0.0.0-20201126113720-ea80572f0b9b => ../rpcx
