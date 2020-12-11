@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/kudos/protocol"
 	"github.com/kudoochui/kudos/protocol/pomelo/message"
 	"github.com/kudoochui/kudos/protocol/pomelo/pkg"
 	"github.com/kudoochui/kudos/rpc"
@@ -33,10 +32,6 @@ func NewAgentHandler(a *agent) *agentHandler {
 
 func (h *agentHandler) Handle(buffer *bytes.Buffer) {
 	pkgType, body := pkg.Decode(buffer.Bytes())
-	if pkgType == pkg.TYPE_DATA {
-		h.handleData(pkgType, body, buffer)
-		return
-	}
  	switch pkgType {
 	case pkg.TYPE_HANDSHAKE:
 		h.handleHandshake(pkgType, body)
@@ -44,11 +39,9 @@ func (h *agentHandler) Handle(buffer *bytes.Buffer) {
 		h.handleHandshakeAck(pkgType, body)
 	case pkg.TYPE_HEARTBEAT:
 		h.handleHeartbeat(pkgType, body)
-	//case pkg.TYPE_DATA:
-	//	h.handleData(pkgType, body, buffer)
+	case pkg.TYPE_DATA:
+		h.handleData(pkgType, body)
 	}
-	buffer.Reset()
-	protocol.FreePoolMsg(buffer)
 }
 
 func (h *agentHandler) handleHandshake(pkgType int, body []byte) {
@@ -97,12 +90,12 @@ func (h *agentHandler) handleHeartbeat(pkgType int, body []byte) {
 	})
 }
 
-func (h *agentHandler) handleData(pkgType int, body []byte, buffer *bytes.Buffer) {
+func (h *agentHandler) handleData(pkgType int, body []byte) {
 	msgId, msgType, route, data := message.Decode(body)
 	//_ = msgId
 	_ = msgType
 
-	msgInfo := msgService.GetMsgService().GetMsgByRouteId(route)
+	msgInfo := msgService.GetMsgService().GetMsgByRouteId(uint32(route))
 	if msgInfo == nil {
 		log.Error("invalid route id")
 		return
@@ -141,8 +134,6 @@ func (h *agentHandler) handleData(pkgType int, body []byte, buffer *bytes.Buffer
 	}
 	//h.agent.connector.proxy.Go(servicePath, serviceName, args, msgResp, h.agent.chanRet)
 	rpcClientService.GetRpcClientService().Go(servicePath, serviceName, args, msgResp, h.agent.chanRet)
-	buffer.Reset()
-	protocol.FreePoolMsg(buffer)
 }
 
 func (h *agentHandler) processError(code int){

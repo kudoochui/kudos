@@ -2,8 +2,6 @@ package connector
 
 import (
 	"context"
-	"github.com/kudoochui/kudos/protocol/pomelo/message"
-	"github.com/kudoochui/kudos/protocol/pomelo/pkg"
 	"github.com/kudoochui/kudos/rpc"
 	msgService "github.com/kudoochui/kudos/service/msgService"
 )
@@ -22,8 +20,7 @@ func (c *ChannelRemote) PushMessageByGroup(ctx context.Context, args *rpc.ArgsGr
 	for _, sid := range args.Sids {
 		if a, err := c.connector.GetSessionMap().GetAgent(sid); err == nil {
 			routeId := msgService.GetMsgService().GetRouteId(args.Route)
-			buffer := message.Encode(0, message.TYPE_PUSH, routeId, args.Payload)
-			a.Write(pkg.Encode(pkg.TYPE_DATA, buffer))
+			a.PushMessage(routeId, args.Payload)
 		}
 	}
 	return nil
@@ -34,8 +31,7 @@ func (c *ChannelRemote) Broadcast(ctx context.Context, args *rpc.ArgsGroup, repl
 	//log.Debug(">>>> %s broadcast: %s, %s", c.connector.opts.WSAddr, args.Route, string(args.Payload))
 	c.connector.GetSessionMap().Range(func(key, value interface{}) bool {
 		routeId := msgService.GetMsgService().GetRouteId(args.Route)
-		buffer := message.Encode(0, message.TYPE_PUSH, routeId, args.Payload)
-		value.(Agent).Write(pkg.Encode(pkg.TYPE_DATA, buffer))
+		value.(Agent).PushMessage(routeId, args.Payload)
 		return true
 	})
 	return nil

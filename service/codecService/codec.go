@@ -27,6 +27,10 @@ func SetCodecType(t string) {
 	codecType = t
 }
 
+func GetCodecType() string {
+	return codecType
+}
+
 func GetCodecService() Codec {
 	once.Do(func() {
 		switch codecType {

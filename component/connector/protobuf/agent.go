@@ -1,11 +1,11 @@
-package pomelo
+package protobuf
 
 import (
+	"encoding/binary"
 	"github.com/kudoochui/kudos/log"
 	"github.com/kudoochui/kudos/network"
 	"github.com/kudoochui/kudos/protocol"
-	"github.com/kudoochui/kudos/protocol/pomelo/message"
-	"github.com/kudoochui/kudos/protocol/pomelo/pkg"
+	"github.com/kudoochui/kudos/protocol/protobuf/pkg"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/codecService"
 	"github.com/kudoochui/rpcx/client"
@@ -67,18 +67,69 @@ func (a *agent) Run() {
 		}
 	}()
 
-	for {
-		buffer := protocol.GetPoolMsg()
-		err := a.conn.ReadMsg(buffer)
-		if err != nil {
-			log.Debug("read message: %v", err)
-			break
-		}
+	switch a.conn.(type) {
+	case *network.WSConn:
+		for {
+			buffer := protocol.GetPoolMsg()
+			err := a.conn.ReadMsg(buffer)
+			if err != nil {
+				log.Debug("read message: %v", err)
+				break
+			}
 
-		a.agentHandler.Handle(buffer)
-		buffer.Reset()
-		protocol.FreePoolMsg(buffer)
+			_, pkgType, body := pkg.Decode(buffer.Bytes())
+			a.agentHandler.Handle(pkgType, body)
+			buffer.Reset()
+			protocol.FreePoolMsg(buffer)
+		}
+		break
+	case *network.TCPConn:
+		for {
+			headBuffer := protocol.GetUint32PoolData()
+
+			// read len
+			if _, err := a.conn.Read(*headBuffer); err != nil {
+				protocol.PutUint32PoolData(headBuffer)
+				break
+			}
+
+			// parse len
+			var msgLen uint32
+			if pkg.GetByteOrder() {
+				msgLen = binary.LittleEndian.Uint32(*headBuffer)
+			} else {
+				msgLen = binary.BigEndian.Uint32(*headBuffer)
+			}
+
+			// check len
+			//if msgLen > p.maxMsgLen {
+			//	return nil, errors.New("message too long")
+			//} else if msgLen < p.minMsgLen {
+			//	return nil, errors.New("message too short")
+			//}
+
+			// data
+			payloadBuffer := protocol.GetPoolBuffer(int(msgLen))
+			protocol.PutUint32PoolData(headBuffer)
+			if _, err := a.conn.Read(*payloadBuffer); err != nil {
+				protocol.FreePoolBuffer(payloadBuffer)
+				break
+			}
+
+			//pkgType, body := pkg.Decode(*payloadBuffer)
+			var pkgType uint32
+			if pkg.GetByteOrder() {
+				pkgType = binary.LittleEndian.Uint32((*payloadBuffer)[:pkg.PKG_TYPE_BYTES])
+			} else {
+				pkgType = binary.BigEndian.Uint32((*payloadBuffer)[:pkg.PKG_TYPE_BYTES])
+			}
+			body := (*payloadBuffer)[pkg.PKG_TYPE_BYTES:]
+			a.agentHandler.Handle(pkgType, body)
+			protocol.FreePoolBuffer(payloadBuffer)
+		}
+		break
 	}
+
 	close(a.writeChan)
 }
 
@@ -98,10 +149,9 @@ func (a *agent) WriteResponse(msgId int, msg interface{}) {
 			log.Error("marshal message %v error: %v", reflect.TypeOf(msg), err)
 			return
 		}
-		//routeId := msgService.GetMsgService().GetRouteId(route)
-		buffer := message.Encode(msgId, message.TYPE_RESPONSE, 0, data)
-		err = a.conn.WriteMessage(*pkg.Encode(pkg.TYPE_DATA, buffer))
-		protocol.FreePoolBuffer(&buffer)
+		buffer := pkg.Encode(uint32(msgId), data)
+		err = a.conn.WriteMessage(*buffer)
+		protocol.FreePoolBuffer(buffer)
 		if err != nil {
 			log.Error("write message %v error: %v", reflect.TypeOf(msg), err)
 		}
@@ -138,14 +188,12 @@ func (a *agent) GetSession() *rpc.Session {
 }
 
 func (a *agent) PushMessage(routeId uint32, data []byte) {
-	buffer := message.Encode(0, message.TYPE_PUSH, uint16(routeId), data)
-	a.Write(pkg.Encode(pkg.TYPE_DATA, buffer))
+	buffer := pkg.Encode(routeId, data)
+	a.Write(buffer)
 }
 
 func (a *agent) KickMessage(reason string) {
-	ret := map[string]string{
-		"reason": reason,
-	}
+	ret := &pkg.RespResult{Code:int32(pkg.EErrorCode_ERROR_KICK_BY_SERVER), Msg:reason}
 	buffer,_ := codecService.GetCodecService().Marshal(ret)
-	a.Write(pkg.Encode(pkg.TYPE_KICK, buffer))
+	a.Write(pkg.Encode(uint32(pkg.EMsgType_TYPE_KICK_BY_SERVER), buffer))
 }

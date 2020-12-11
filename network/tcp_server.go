@@ -10,7 +10,6 @@ import (
 type TCPServer struct {
 	Addr            string
 	MaxConnNum      int
-	PendingWriteNum int
 	NewAgent        func(*TCPConn) Agent
 	ln              net.Listener
 	conns           ConnSet
@@ -19,11 +18,11 @@ type TCPServer struct {
 	wgConns         sync.WaitGroup
 
 	// msg parser
-	LenMsgLen    int
-	MinMsgLen    uint32
-	MaxMsgLen    uint32
-	LittleEndian bool
-	msgParser    *MsgParser
+	//LenMsgLen    int
+	//MinMsgLen    uint32
+	//MaxMsgLen    uint32
+	//LittleEndian bool
+	//msgParser    *MsgParser
 }
 
 func (server *TCPServer) Start() {
@@ -38,12 +37,8 @@ func (server *TCPServer) init() {
 	}
 
 	if server.MaxConnNum <= 0 {
-		server.MaxConnNum = 100
+		server.MaxConnNum = 10000
 		log.Warning("invalid MaxConnNum, reset to %v", server.MaxConnNum)
-	}
-	if server.PendingWriteNum <= 0 {
-		server.PendingWriteNum = 100
-		log.Warning("invalid PendingWriteNum, reset to %v", server.PendingWriteNum)
 	}
 	if server.NewAgent == nil {
 		log.Error("NewAgent must not be nil")
@@ -51,12 +46,6 @@ func (server *TCPServer) init() {
 
 	server.ln = ln
 	server.conns = make(ConnSet)
-
-	// msg parser
-	msgParser := NewMsgParser()
-	msgParser.SetMsgLen(server.LenMsgLen, server.MinMsgLen, server.MaxMsgLen)
-	msgParser.SetByteOrder(server.LittleEndian)
-	server.msgParser = msgParser
 }
 
 func (server *TCPServer) run() {
@@ -96,7 +85,7 @@ func (server *TCPServer) run() {
 
 		server.wgConns.Add(1)
 
-		tcpConn := newTCPConn(conn, server.PendingWriteNum, server.msgParser)
+		tcpConn := newTCPConn(conn)
 		agent := server.NewAgent(tcpConn)
 		go func() {
 			agent.Run()

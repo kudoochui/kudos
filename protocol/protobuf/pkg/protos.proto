@@ -1,0 +1,25 @@
+syntax="proto3";
+package pkg;
+
+enum EMsgType {
+    INVALID_TYPE = 0;
+    TYPE_HEARTBEAT = 70000;
+    TYPE_COMMON_RESULT = 70001;
+    TYPE_KICK_BY_SERVER = 70002;
+}
+
+enum EErrorCode {
+    INVALID_ERROR_CODE = 0;
+    SUCCESS = 1;
+    ERROR_ROUTE_ID = 2;
+    ERROR_KICK_BY_SERVER = 3;
+}
+
+message ReqHeartbeat {
+
+}
+
+message RespResult {
+    int32 Code = 1;
+    string Msg = 2;
+}

@@ -12,7 +12,6 @@ type TCPClient struct {
 	Addr            string
 	ConnNum         int
 	ConnectInterval time.Duration
-	PendingWriteNum int
 	AutoReconnect   bool
 	NewAgent        func(*TCPConn) Agent
 	conns           ConnSet
@@ -24,7 +23,7 @@ type TCPClient struct {
 	MinMsgLen    uint32
 	MaxMsgLen    uint32
 	LittleEndian bool
-	msgParser    *MsgParser
+	MsgParser    *MsgParser
 }
 
 func (client *TCPClient) Start() {
@@ -48,10 +47,6 @@ func (client *TCPClient) init() {
 		client.ConnectInterval = 3 * time.Second
 		log.Warning("invalid ConnectInterval, reset to %v", client.ConnectInterval)
 	}
-	if client.PendingWriteNum <= 0 {
-		client.PendingWriteNum = 100
-		log.Warning("invalid PendingWriteNum, reset to %v", client.PendingWriteNum)
-	}
 	if client.NewAgent == nil {
 		log.Error("NewAgent must not be nil")
 	}
@@ -66,7 +61,7 @@ func (client *TCPClient) init() {
 	msgParser := NewMsgParser()
 	msgParser.SetMsgLen(client.LenMsgLen, client.MinMsgLen, client.MaxMsgLen)
 	msgParser.SetByteOrder(client.LittleEndian)
-	client.msgParser = msgParser
+	client.MsgParser = msgParser
 }
 
 func (client *TCPClient) dial() net.Conn {
@@ -100,7 +95,7 @@ reconnect:
 	client.conns[conn] = struct{}{}
 	client.Unlock()
 
-	tcpConn := newTCPConn(conn, client.PendingWriteNum, client.msgParser)
+	tcpConn := newTCPConn(conn)
 	agent := client.NewAgent(tcpConn)
 	agent.Run()
 

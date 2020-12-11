@@ -30,3 +30,18 @@ func GetPoolBuffer(size int) *[]byte {
 func FreePoolBuffer(buf *[]byte)  {
 	bufferPool.Put(buf)
 }
+
+var poolUint32Data = sync.Pool{
+	New: func() interface{} {
+		data := make([]byte, 4)
+		return &data
+	},
+}
+
+func GetUint32PoolData() *[]byte {
+	return poolUint32Data.Get().(*[]byte)
+}
+
+func PutUint32PoolData(buffer *[]byte)  {
+	poolUint32Data.Put(buffer)
+}

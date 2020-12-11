@@ -13,6 +13,8 @@ type Agent interface {
 	UserData() interface{}
 	SetUserData(data interface{})
 	GetSession() *rpc.Session
+	PushMessage(uint32, []byte)
+	KickMessage(string)
 }
 
 type Connector interface {

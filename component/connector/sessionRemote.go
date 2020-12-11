@@ -3,9 +3,7 @@ package connector
 import (
 	"context"
 	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/kudos/protocol/pomelo/pkg"
 	"github.com/kudoochui/kudos/rpc"
-	"github.com/kudoochui/kudos/service/codecService"
 	"runtime"
 )
 
@@ -64,11 +62,7 @@ func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rp
 		return err
 	}
 	reason := args.MsgReq.(string)
-	ret := map[string]string{
-		"reason": reason,
-	}
-	buffer,_ := codecService.GetCodecService().Marshal(ret)
-	agent.Write(pkg.Encode(pkg.TYPE_KICK, buffer))
+	agent.KickMessage(reason)
 
 	runtime.Gosched()
 	agent.Close()
