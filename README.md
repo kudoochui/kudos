@@ -3,7 +3,7 @@ Kudos is a simple, high-performance, easy to expand and easy to deploy distribut
 based on microservice architecture, It is based on RPC of rpcx, supports pomelo communication protocol and
 can be easily applied to game development.
 
-[中文文档](Chinese)
+[中文文档](Chinese.md)
 
 ## Features
 -**Easy to use**: Game development requires that basic components and services have been integrated and called directly. Especially friendly to those who are familiar with pomelo.
