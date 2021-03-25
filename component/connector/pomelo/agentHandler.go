@@ -109,12 +109,13 @@ func (h *agentHandler) handleData(pkgType int, body []byte) {
 
 	msgResp := reflect.New(msgInfo.MsgRespType.Elem()).Interface()
 	rr := strings.Split(msgInfo.Route, ".")
-	if len(rr) < 2 {
+	if len(rr) < 3 {
 		log.Error("route format error")
 		return
 	}
-	servicePath := rr[0]
-	serviceName := rr[1]
+	nodeName := rr[0]
+	servicePath := rr[1]
+	serviceName := rr[2]
 
 	if h.agent.connector.customerRoute != nil {
 		var err error
@@ -133,7 +134,7 @@ func (h *agentHandler) handleData(pkgType int, body []byte) {
 		h.agent.connector.handlerFilter.Before(servicePath+"."+serviceName, args)
 	}
 	//h.agent.connector.proxy.Go(servicePath, serviceName, args, msgResp, h.agent.chanRet)
-	rpcClientService.GetRpcClientService().Go(servicePath, serviceName, args, msgResp, h.agent.chanRet)
+	rpcClientService.GetRpcClientService().Go(nodeName, servicePath, serviceName, args, msgResp, h.agent.chanRet)
 }
 
 func (h *agentHandler) processError(code int){

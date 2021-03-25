@@ -27,5 +27,5 @@ func (s *SessionService) KickBySid(nodeId string, sid int64, reason string) {
 		MsgReq: reason,
 	}
 	reply := &rpc.Reply{}
-	rpcClientService.GetRpcClientService().Call(nodeId+"@SessionRemote","KickBySid", args, reply)
+	rpcClientService.GetRpcClientService().Call(nodeId, "SessionRemote","KickBySid", args, reply)
 }

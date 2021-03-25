@@ -54,7 +54,7 @@ func (c *ChannelService) PushMessageBySid(nodeId string, route string, msg inter
 		Payload:  data,
 	}
 	reply := &rpc.ReplyGroup{}
-	rpcClientService.GetRpcClientService().Call(nodeId+"@ChannelRemote","PushMessageByGroup", args, reply)
+	rpcClientService.GetRpcClientService().Call(nodeId, "ChannelRemote","PushMessageByGroup", args, reply)
 }
 
 func (c *ChannelService) AsyncPushMessageBySid(nodeId string, route string, msg interface{}, sids []int64) {
@@ -68,7 +68,7 @@ func (c *ChannelService) AsyncPushMessageBySid(nodeId string, route string, msg 
 		Payload:  data,
 	}
 	reply := &rpc.ReplyGroup{}
-	rpcClientService.GetRpcClientService().Go(nodeId+"@ChannelRemote","PushMessageByGroup", args, reply, nil)
+	rpcClientService.GetRpcClientService().Go(nodeId, "ChannelRemote","PushMessageByGroup", args, reply, nil)
 }
 
 func (c *ChannelService) Broadcast(nodeId string, route string, msg interface{}) {
@@ -82,5 +82,5 @@ func (c *ChannelService) Broadcast(nodeId string, route string, msg interface{})
 		Payload:  data,
 	}
 	reply := &rpc.ReplyGroup{}
-	rpcClientService.GetRpcClientService().Go(nodeId+"@ChannelRemote","Broadcast", args, reply, nil)
+	rpcClientService.GetRpcClientService().Go(nodeId, "ChannelRemote","Broadcast", args, reply, nil)
 }

@@ -56,7 +56,7 @@ func (s *Session) Bind(userId int64) {
 		MsgReq:  userId,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","Bind", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId,"SessionRemote","Bind", args, reply)
 }
 
 func (s *Session) UnBind() {
@@ -66,7 +66,7 @@ func (s *Session) UnBind() {
 		Session: *s,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","UnBind", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId,"SessionRemote","UnBind", args, reply)
 }
 
 func (s *Session) Get(key string) string {
@@ -105,7 +105,7 @@ func (s *Session) Push(){
 		MsgReq: s.Settings,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","Push", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId, "SessionRemote","Push", args, reply)
 }
 
 func (s *Session) Close(reason string) {
@@ -114,5 +114,5 @@ func (s *Session) Close(reason string) {
 		MsgReq: reason,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId+"@SessionRemote","KickBySid", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId, "SessionRemote","KickBySid", args, reply)
 }

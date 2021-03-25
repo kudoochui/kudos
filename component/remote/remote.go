@@ -2,13 +2,11 @@ package remote
 
 import (
 	"context"
-	"fmt"
 	"github.com/kudoochui/kudos/component"
 	"github.com/kudoochui/kudos/log"
 	"github.com/kudoochui/rpcx/server"
 	"github.com/kudoochui/rpcx/serverplugin"
 	metrics "github.com/rcrowley/go-metrics"
-	"reflect"
 	"time"
 )
 
@@ -54,14 +52,10 @@ func (r *Remote) GetRemoteAddrs() string {
 	return r.opts.Addr
 }
 
-func (r *Remote) RegisterHandler(rcvr interface{}, metadata string) error {
-	return r.server.Register(rcvr, metadata)
-}
-
 func (r *Remote) RegisterName(nodeId string, rcvr interface{}, metadata string) error {
-	sname := reflect.TypeOf(rcvr).Elem().Name()
-	name := fmt.Sprintf("%s@%s", nodeId, sname)
-	return r.server.RegisterName(name, rcvr, metadata)
+	//sname := reflect.TypeOf(rcvr).Elem().Name()
+	//name := fmt.Sprintf("%s@%s", nodeId, sname)
+	return r.server.RegisterName(nodeId, rcvr, metadata)
 }
 
 func (r *Remote) addRegistryPlugin() {

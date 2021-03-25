@@ -117,6 +117,6 @@ func (c *Channel) PushMessage(route string, msg interface{}, excludeUid []int64)
 			Payload:  data,
 		}
 		reply := &rpc.ReplyGroup{}
-		rpcClientService.GetRpcClientService().Go(nodeId+"@ChannelRemote","PushMessageByGroup", args, reply, nil)
+		rpcClientService.GetRpcClientService().Go(nodeId, "ChannelRemote","PushMessageByGroup", args, reply, nil)
 	}
 }

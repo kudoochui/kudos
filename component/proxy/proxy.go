@@ -69,12 +69,12 @@ func (r *Proxy) OnRun(closeSig chan bool) {
 	r.lock.Unlock()
 }
 
-func (r *Proxy) Call(servicePath string, serviceMethod string, args *rpc.Args, reply interface{}) error {
+func (r *Proxy) Call(nodeName string, servicePath string, serviceMethod string, args *rpc.Args, reply interface{}) error {
 	if r.rpcFilter != nil {
 		r.rpcFilter.Before(servicePath + "." + serviceMethod, args)
 	}
 	r.lock.RLock()
-	err := r.rpcClient.Call(context.TODO(), servicePath, serviceMethod, args, reply)
+	err := r.rpcClient.Call(context.TODO(), nodeName, servicePath, serviceMethod, args, reply)
 	r.lock.RUnlock()
 	if r.rpcFilter != nil {
 		r.rpcFilter.After(servicePath + "." + serviceMethod,reply)
@@ -82,10 +82,10 @@ func (r *Proxy) Call(servicePath string, serviceMethod string, args *rpc.Args, r
 	return err
 }
 
-func (r *Proxy) Go(servicePath string, serviceMethod string, args *rpc.Args, reply interface{}, chanRet chan *client.Call) {
+func (r *Proxy) Go(nodeName string, servicePath string, serviceMethod string, args *rpc.Args, reply interface{}, chanRet chan *client.Call) {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
-	if _,err := r.rpcClient.Go(context.TODO(),servicePath, serviceMethod, args, reply, chanRet); err != nil {
+	if _,err := r.rpcClient.Go(context.TODO(),nodeName, servicePath, serviceMethod, args, reply, chanRet); err != nil {
 		log.Error("rpc call error: %v", err)
 	}
 }
