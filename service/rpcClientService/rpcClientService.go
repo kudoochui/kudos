@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/kudoochui/kudos/filter"
 	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/rpcx/client"
+	"github.com/kudoochui/kudos/rpcx/client"
 	"sync"
 )
 

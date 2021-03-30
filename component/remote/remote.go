@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/kudoochui/kudos/component"
 	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/rpcx/server"
-	"github.com/kudoochui/rpcx/serverplugin"
+	"github.com/kudoochui/kudos/rpcx/server"
+	"github.com/kudoochui/kudos/rpcx/serverplugin"
 	metrics "github.com/rcrowley/go-metrics"
 	"time"
 )

@@ -8,7 +8,7 @@ import (
 	"github.com/kudoochui/kudos/protocol/protobuf/pkg"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/codecService"
-	"github.com/kudoochui/rpcx/client"
+	"github.com/kudoochui/kudos/rpcx/client"
 	"net"
 	"reflect"
 )

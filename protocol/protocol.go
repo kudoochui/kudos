@@ -2,7 +2,7 @@ package protocol
 
 import (
 	"bytes"
-	"github.com/kudoochui/rpcx/util"
+	"github.com/kudoochui/kudos/rpcx/util"
 	"sync"
 )
 

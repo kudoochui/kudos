@@ -12,9 +12,9 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/json-iterator/go v1.1.10
-	github.com/kudoochui/rpcx v0.0.0-20210323121129-7ba90168bdfa
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
+	github.com/prometheus/client_golang v1.8.0
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 	github.com/smallnest/libkv-etcdv3-store v1.1.9 // indirect
