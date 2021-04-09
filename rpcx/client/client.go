@@ -83,8 +83,8 @@ type seqKey struct{}
 // RPCClient is interface that defines one client to call one server.
 type RPCClient interface {
 	Connect(network, address string) error
-	Go(ctx context.Context, servicePath, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call
-	Call(ctx context.Context, servicePath, serviceMethod string, args interface{}, reply interface{}) error
+	Go(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}, done chan *Call) *Call
+	Call(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error
 	SendRaw(ctx context.Context, r *protocol.Message) (map[string]string, []byte, error)
 	Close() error
 	RemoteAddr() string
@@ -174,6 +174,7 @@ type Call struct {
 	ServiceMethod string            // The name of the service and method to call.
 	Metadata      map[string]string // metadata
 	ResMetadata   map[string]string
+	session 	  protocol.ISession
 	Args          interface{} // The argument to the function (*struct).
 	Reply         interface{} // The reply from the function (*struct).
 	Error         error       // After completion, the error status.
@@ -223,7 +224,7 @@ func (client *Client) IsShutdown() bool {
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(ctx context.Context, servicePath, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+func (client *Client) Go(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}, done chan *Call) *Call {
 	call := new(Call)
 	call.ServicePath = servicePath
 	call.ServiceMethod = serviceMethod
@@ -240,6 +241,7 @@ func (client *Client) Go(ctx context.Context, servicePath, serviceMethod string,
 	client.injectOpenTracingSpan(ctx, call)
 	client.injectOpenCensusSpan(ctx, call)
 
+	call.session = session
 	call.Args = args
 	call.Reply = reply
 	if done == nil {
@@ -316,11 +318,11 @@ func (client *Client) injectOpenCensusSpan(ctx context.Context, call *Call) {
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(ctx context.Context, servicePath, serviceMethod string, args interface{}, reply interface{}) error {
-	return client.call(ctx, servicePath, serviceMethod, args, reply)
+func (client *Client) Call(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error {
+	return client.call(ctx, servicePath, serviceMethod, session, args, reply)
 }
 
-func (client *Client) call(ctx context.Context, servicePath, serviceMethod string, args interface{}, reply interface{}) error {
+func (client *Client) call(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error {
 	seq := new(uint64)
 	ctx = context.WithValue(ctx, seqKey{}, seq)
 
@@ -331,7 +333,7 @@ func (client *Client) call(ctx context.Context, servicePath, serviceMethod strin
 		}()
 	}
 
-	Done := client.Go(ctx, servicePath, serviceMethod, args, reply, make(chan *Call, 1)).Done
+	Done := client.Go(ctx, servicePath, serviceMethod, session, args, reply, make(chan *Call, 1)).Done
 
 	var err error
 	select {
@@ -556,6 +558,10 @@ func (client *Client) send(ctx context.Context, call *Call) {
 
 	req.ServicePath = call.ServicePath
 	req.ServiceMethod = call.ServiceMethod
+	session := call.session
+	req.NodeId = session.GetNodeId()
+	req.SessionId = session.GetSessionId()
+	req.UserId = session.GetUserId()
 
 	data, err := codec.Encode(call.Args)
 	if err != nil {
@@ -789,7 +795,7 @@ func (client *Client) heartbeat() {
 		request := time.Now().UnixNano()
 		reply := int64(0)
 		ctx, cancel := context.WithTimeout(context.Background(), client.option.MaxWaitForHeartbeat)
-		err := client.Call(ctx, "", "", &request, &reply)
+		err := client.Call(ctx, "", "", dummySession, &request, &reply)
 		abnormal := false
 		if ctx.Err() != nil {
 			log.Warnf("failed to heartbeat to %s, context err: %v", client.Conn.RemoteAddr().String(), ctx.Err())

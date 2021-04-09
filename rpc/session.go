@@ -24,6 +24,19 @@ func NewSession(nodeId string) *Session  {
 	}
 }
 
+func NewSessionFromRpc(nodeId string, sessionId int64, userId int64) *Session  {
+	return &Session{
+		NodeId: nodeId,
+		SessionId: sessionId,
+		UserId: userId,
+		Settings:  map[string]string{},
+	}
+}
+
+func (s *Session) GetNodeId() string {
+	return s.NodeId
+}
+
 func (s *Session) GetSessionId() int64 {
 	return s.SessionId
 }
@@ -52,21 +65,19 @@ func (s *Session) Bind(userId int64) {
 	s.UserId = userId
 
 	args := &Args{
-		Session: *s,
 		MsgReq:  userId,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId,"SessionRemote","Bind", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId,"SessionRemote","Bind", s, args, reply)
 }
 
 func (s *Session) UnBind() {
 	s.UserId = 0
 
 	args := &Args{
-		Session: *s,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId,"SessionRemote","UnBind", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId,"SessionRemote","UnBind", s, args, reply)
 }
 
 func (s *Session) Get(key string) string {
@@ -101,18 +112,16 @@ func (s *Session) Clone() *Session {
 // synchronize setting with frontend session
 func (s *Session) Push(){
 	args := &Args{
-		Session: *s,
 		MsgReq: s.Settings,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId, "SessionRemote","Push", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId, "SessionRemote","Push", s, args, reply)
 }
 
 func (s *Session) Close(reason string) {
 	args := &Args{
-		Session: *s,
 		MsgReq: reason,
 	}
 	reply := &Reply{}
-	rpcClientService.GetRpcClientService().Call(s.NodeId, "SessionRemote","KickBySid", args, reply)
+	rpcClientService.GetRpcClientService().Call(s.NodeId, "SessionRemote","KickBySid", s, args, reply)
 }

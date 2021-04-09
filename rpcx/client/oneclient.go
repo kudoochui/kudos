@@ -108,7 +108,7 @@ func (c *OneClient) Auth(auth string) {
 
 // Go invokes the function asynchronously. It returns the Call structure representing the invocation. The done channel will signal when the call is complete by returning the same Call object. If done is nil, Go will allocate a new channel. If non-nil, done must be buffered or Go will deliberately crash.
 // It does not use FailMode.
-func (c *OneClient) Go(ctx context.Context, nodeName string, servicePath string, serviceMethod string, args interface{}, reply interface{}, done chan *Call) (*Call, error) {
+func (c *OneClient) Go(ctx context.Context, nodeName string, servicePath string, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}, done chan *Call) (*Call, error) {
 	c.mu.RLock()
 	xclient := c.xclients[nodeName]
 	c.mu.RUnlock()
@@ -127,7 +127,7 @@ func (c *OneClient) Go(ctx context.Context, nodeName string, servicePath string,
 		}
 	}
 
-	return xclient.Go(ctx, servicePath, serviceMethod, args, reply, done)
+	return xclient.Go(ctx, servicePath, serviceMethod, session, args, reply, done)
 }
 
 func (c *OneClient) newXClient(nodeName string) (xclient XClient, err error) {
@@ -173,7 +173,7 @@ func (c *OneClient) newXClient(nodeName string) (xclient XClient, err error) {
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 // It handles errors base on FailMode.
-func (c *OneClient) Call(ctx context.Context, nodeName string, servicePath string, serviceMethod string, args interface{}, reply interface{}) error {
+func (c *OneClient) Call(ctx context.Context, nodeName string, servicePath string, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error {
 	c.mu.RLock()
 	xclient := c.xclients[nodeName]
 	c.mu.RUnlock()
@@ -192,7 +192,7 @@ func (c *OneClient) Call(ctx context.Context, nodeName string, servicePath strin
 		}
 	}
 
-	return xclient.Call(ctx, servicePath, serviceMethod, args, reply)
+	return xclient.Call(ctx, servicePath, serviceMethod, session, args, reply)
 }
 
 func (c *OneClient) SendRaw(ctx context.Context, r *protocol.Message) (map[string]string, []byte, error) {

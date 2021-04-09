@@ -35,6 +35,8 @@ var (
 	ErrServerUnavailable = errors.New("selected server is unavilable")
 )
 
+var dummySession = protocol.NewDummySession()
+
 // XClient is an interface that used by client with service discovery and service governance.
 // One XClient is used only for one service. You should create multiple XClient for multiple services.
 type XClient interface {
@@ -44,8 +46,8 @@ type XClient interface {
 	ConfigGeoSelector(latitude, longitude float64)
 	Auth(auth string)
 
-	Go(ctx context.Context, servicePath,serviceMethod string, args interface{}, reply interface{}, done chan *Call) (*Call, error)
-	Call(ctx context.Context, servicePath,serviceMethod string, args interface{}, reply interface{}) error
+	Go(ctx context.Context, servicePath,serviceMethod string, session protocol.ISession, args interface{}, reply interface{}, done chan *Call) (*Call, error)
+	Call(ctx context.Context, servicePath,serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error
 	Broadcast(ctx context.Context, servicePath,serviceMethod string, args interface{}, reply interface{}) error
 	Fork(ctx context.Context, servicePath,serviceMethod string, args interface{}, reply interface{}) error
 	SendRaw(ctx context.Context, r *protocol.Message) (map[string]string, []byte, error)
@@ -234,14 +236,18 @@ func filterByStateAndGroup(group string, servers map[string]string) {
 }
 
 // selects a client from candidates base on c.selectMode
-func (c *xClient) selectClient(ctx context.Context, servicePath, serviceMethod string, args interface{}) (string, RPCClient, error) {
-	c.mu.Lock()
-	fn := c.selector.Select
-	if c.Plugins != nil {
-		fn = c.Plugins.DoWrapSelect(fn)
+func (c *xClient) selectClient(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}) (string, RPCClient, error) {
+	k := session.Get("cachedServer")
+	if k == "" {
+		c.mu.Lock()
+		fn := c.selector.Select
+		if c.Plugins != nil {
+			fn = c.Plugins.DoWrapSelect(fn)
+		}
+		k = fn(ctx, servicePath, serviceMethod, args)
+		c.mu.Unlock()
+		session.Set("cachedServer", k)
 	}
-	k := fn(ctx, servicePath, serviceMethod, args)
-	c.mu.Unlock()
 	if k == "" {
 		return "", nil, ErrXClientNoServer
 	}
@@ -395,7 +401,7 @@ func setServerTimeout(ctx context.Context) context.Context {
 
 // Go invokes the function asynchronously. It returns the Call structure representing the invocation. The done channel will signal when the call is complete by returning the same Call object. If done is nil, Go will allocate a new channel. If non-nil, done must be buffered or Go will deliberately crash.
 // It does not use FailMode.
-func (c *xClient) Go(ctx context.Context, servicePath, serviceMethod string, args interface{}, reply interface{}, done chan *Call) (*Call, error) {
+func (c *xClient) Go(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}, done chan *Call) (*Call, error) {
 	if c.isShutdown {
 		return nil, ErrXClientShutdown
 	}
@@ -415,19 +421,19 @@ func (c *xClient) Go(ctx context.Context, servicePath, serviceMethod string, arg
 	if share.Trace {
 		log.Debugf("select a client for %s.%s, args: %+v in case of xclient Go", servicePath, serviceMethod, args)
 	}
-	_, client, err := c.selectClient(ctx, servicePath, serviceMethod, args)
+	_, client, err := c.selectClient(ctx, servicePath, serviceMethod, session, args)
 	if err != nil {
 		return nil, err
 	}
 	if share.Trace {
 		log.Debugf("selected a client %s for %s.%s, args: %+v in case of xclient Go", client.RemoteAddr(), servicePath, serviceMethod, args)
 	}
-	return client.Go(ctx, servicePath, serviceMethod, args, reply, done), nil
+	return client.Go(ctx, servicePath, serviceMethod, session, args, reply, done), nil
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 // It handles errors base on FailMode.
-func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, args interface{}, reply interface{}) error {
+func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error {
 	if c.isShutdown {
 		return ErrXClientShutdown
 	}
@@ -448,7 +454,7 @@ func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, ar
 	}
 
 	var err error
-	k, client, err := c.selectClient(ctx, servicePath, serviceMethod, args)
+	k, client, err := c.selectClient(ctx, servicePath, serviceMethod, session, args)
 	if err != nil {
 		if c.failMode == Failfast || contextCanceled(err) {
 			return err
@@ -467,7 +473,7 @@ func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, ar
 			retries--
 
 			if client != nil {
-				err = c.wrapCall(ctx, client, servicePath, serviceMethod, args, reply)
+				err = c.wrapCall(ctx, client, servicePath, serviceMethod, session, args, reply)
 				if err == nil {
 					return nil
 				}
@@ -494,7 +500,7 @@ func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, ar
 			retries--
 
 			if client != nil {
-				err = c.wrapCall(ctx, client, servicePath, serviceMethod, args, reply)
+				err = c.wrapCall(ctx, client, servicePath, serviceMethod, session, args, reply)
 				if err == nil {
 					return nil
 				}
@@ -510,7 +516,7 @@ func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, ar
 				c.removeClient(k, client)
 			}
 			// select another server
-			k, client, e = c.selectClient(ctx, servicePath, serviceMethod, args)
+			k, client, e = c.selectClient(ctx, servicePath, serviceMethod, session, args)
 		}
 
 		if err == nil {
@@ -530,7 +536,7 @@ func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, ar
 			reply2 = reflect.New(reflect.ValueOf(reply).Elem().Type()).Interface()
 		}
 
-		_, err1 := c.Go(ctx, servicePath, serviceMethod, args, reply1, call1)
+		_, err1 := c.Go(ctx, servicePath, serviceMethod, session, args, reply1, call1)
 
 		t := time.NewTimer(c.option.BackupLatency)
 		select {
@@ -546,7 +552,7 @@ func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, ar
 		case <-t.C:
 
 		}
-		_, err2 := c.Go(ctx, servicePath, serviceMethod, args, reply2, call2)
+		_, err2 := c.Go(ctx, servicePath, serviceMethod, session, args, reply2, call2)
 		if err2 != nil {
 			if uncoverError(err2) {
 				c.removeClient(k, client)
@@ -572,7 +578,7 @@ func (c *xClient) Call(ctx context.Context, servicePath,serviceMethod string, ar
 
 		return err
 	default: // Failfast
-		err = c.wrapCall(ctx, client, servicePath, serviceMethod, args, reply)
+		err = c.wrapCall(ctx, client, servicePath, serviceMethod, session, args, reply)
 		if err != nil {
 			if uncoverError(err) {
 				c.removeClient(k, client)
@@ -633,7 +639,7 @@ func (c *xClient) SendRaw(ctx context.Context, r *protocol.Message) (map[string]
 	}
 
 	var err error
-	k, client, err := c.selectClient(ctx, r.ServicePath, r.ServiceMethod, r.Payload)
+	k, client, err := c.selectClient(ctx, r.ServicePath, r.ServiceMethod, dummySession, r.Payload)
 	if err != nil {
 		if c.failMode == Failfast {
 			return nil, nil, err
@@ -700,7 +706,7 @@ func (c *xClient) SendRaw(ctx context.Context, r *protocol.Message) (map[string]
 				c.removeClient(k, client)
 			}
 			// select another server
-			k, client, e = c.selectClient(ctx, r.ServicePath, r.ServiceMethod, r.Payload)
+			k, client, e = c.selectClient(ctx, r.ServicePath, r.ServiceMethod, dummySession, r.Payload)
 		}
 
 		if err == nil {
@@ -720,7 +726,7 @@ func (c *xClient) SendRaw(ctx context.Context, r *protocol.Message) (map[string]
 	}
 }
 
-func (c *xClient) wrapCall(ctx context.Context, client RPCClient, servicePath,serviceMethod string, args interface{}, reply interface{}) error {
+func (c *xClient) wrapCall(ctx context.Context, client RPCClient, servicePath,serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error {
 	if client == nil {
 		return ErrServerUnavailable
 	}
@@ -731,7 +737,7 @@ func (c *xClient) wrapCall(ctx context.Context, client RPCClient, servicePath,se
 
 	ctx = share.NewContext(ctx)
 	c.Plugins.DoPreCall(ctx, servicePath, serviceMethod, args)
-	err := client.Call(ctx, servicePath, serviceMethod, args, reply)
+	err := client.Call(ctx, servicePath, serviceMethod, session, args, reply)
 	c.Plugins.DoPostCall(ctx, servicePath, serviceMethod, args, reply, err)
 
 	if share.Trace {
@@ -783,7 +789,7 @@ func (c *xClient) Broadcast(ctx context.Context, servicePath,serviceMethod strin
 		k := k
 		client := client
 		go func() {
-			e := c.wrapCall(ctx, client, servicePath, serviceMethod, args, reply)
+			e := c.wrapCall(ctx, client, servicePath, serviceMethod, dummySession, args, reply)
 			done <- (e == nil)
 			if e != nil {
 				if uncoverError(err) {
@@ -861,7 +867,7 @@ func (c *xClient) Fork(ctx context.Context, servicePath, serviceMethod string, a
 				clonedReply = reflect.New(reflect.ValueOf(reply).Elem().Type()).Interface()
 			}
 
-			e := c.wrapCall(ctx, client, servicePath, serviceMethod, args, clonedReply)
+			e := c.wrapCall(ctx, client, servicePath, serviceMethod, dummySession, args, clonedReply)
 			if e == nil && reply != nil && clonedReply != nil {
 				reflect.ValueOf(reply).Elem().Set(reflect.ValueOf(clonedReply).Elem())
 			}
@@ -924,7 +930,7 @@ func (c *xClient) SendFile(ctx context.Context, fileName string, rateInBytesPerS
 	ctx = setServerTimeout(ctx)
 
 	reply := &share.FileTransferReply{}
-	err = c.Call(ctx, "kudos","TransferFile", args, reply)
+	err = c.Call(ctx, "kudos","TransferFile", dummySession, args, reply)
 	if err != nil {
 		return err
 	}
@@ -990,7 +996,7 @@ func (c *xClient) DownloadFile(ctx context.Context, requestFileName string, save
 	}
 
 	reply := &share.FileTransferReply{}
-	err := c.Call(ctx, "kudos","DownloadFile", args, reply)
+	err := c.Call(ctx, "kudos","DownloadFile", dummySession, args, reply)
 	if err != nil {
 		return err
 	}
@@ -1073,7 +1079,7 @@ func (c *xClient) Stream(ctx context.Context, meta map[string]string) (net.Conn,
 	ctx = setServerTimeout(ctx)
 
 	reply := &share.StreamServiceReply{}
-	err := c.Call(ctx, "kudos","Stream", args, reply)
+	err := c.Call(ctx, "kudos","Stream", dummySession, args, reply)
 	if err != nil {
 		return nil, err
 	}

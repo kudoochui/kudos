@@ -70,7 +70,7 @@ type Server struct {
 	DisableJSONRPC     bool // should disable json rpc or not.
 
 	serviceMapMu sync.RWMutex
-	serviceMap   map[string]*service
+	serviceMap   map[string]*Service
 
 	mu         sync.RWMutex
 	activeConn map[net.Conn]struct{}
@@ -104,7 +104,7 @@ func NewServer(options ...OptionFn) *Server {
 		options:    make(map[string]interface{}),
 		activeConn: make(map[net.Conn]struct{}),
 		doneChan:   make(chan struct{}),
-		serviceMap: make(map[string]*service),
+		serviceMap: make(map[string]*Service),
 	}
 
 	for _, op := range options {
@@ -561,6 +561,10 @@ func (s *Server) handleRequest(ctx context.Context, req *protocol.Message) (res 
 	serviceName := req.ServicePath
 	methodName := req.ServiceMethod
 
+	session := NewSessionFromRpc(req.NodeId, req.SessionId, req.UserId)
+	session.server = s
+	session.conn = ctx.Value(RemoteConnContextKey).(net.Conn)
+
 	res = req.Clone()
 
 	res.SetMessageType(protocol.Response)
@@ -576,9 +580,9 @@ func (s *Server) handleRequest(ctx context.Context, req *protocol.Message) (res 
 		err = errors.New("rpcx: can't find service " + serviceName)
 		return handleError(res, err)
 	}
-	mtype := service.method[methodName]
+	mtype := service.Method[methodName]
 	if mtype == nil {
-		if service.function[methodName] != nil { // check raw functions
+		if service.Function[methodName] != nil { // check raw functions
 			return s.handleRequestForFunction(ctx, req)
 		}
 		err = errors.New("rpcx: can't find method " + methodName)
@@ -607,9 +611,9 @@ func (s *Server) handleRequest(ctx context.Context, req *protocol.Message) (res 
 	}
 
 	if mtype.ArgType.Kind() != reflect.Ptr {
-		err = service.call(ctx, mtype, reflect.ValueOf(argv).Elem(), reflect.ValueOf(replyv))
+		err = service.Call(ctx, mtype, reflect.ValueOf(session), reflect.ValueOf(argv).Elem(), reflect.ValueOf(replyv))
 	} else {
-		err = service.call(ctx, mtype, reflect.ValueOf(argv), reflect.ValueOf(replyv))
+		err = service.Call(ctx, mtype, reflect.ValueOf(session), reflect.ValueOf(argv), reflect.ValueOf(replyv))
 	}
 
 	if err == nil {
@@ -662,7 +666,7 @@ func (s *Server) handleRequestForFunction(ctx context.Context, req *protocol.Mes
 		err = errors.New("rpcx: can't find service  for func raw function")
 		return handleError(res, err)
 	}
-	mtype := service.function[methodName]
+	mtype := service.Function[methodName]
 	if mtype == nil {
 		err = errors.New("rpcx: can't find method " + methodName)
 		return handleError(res, err)
@@ -684,9 +688,9 @@ func (s *Server) handleRequestForFunction(ctx context.Context, req *protocol.Mes
 	replyv := argsReplyPools.Get(mtype.ReplyType)
 
 	if mtype.ArgType.Kind() != reflect.Ptr {
-		err = service.callForFunction(ctx, mtype, reflect.ValueOf(argv).Elem(), reflect.ValueOf(replyv))
+		err = service.CallForFunction(ctx, mtype, reflect.ValueOf(argv).Elem(), reflect.ValueOf(replyv))
 	} else {
-		err = service.callForFunction(ctx, mtype, reflect.ValueOf(argv), reflect.ValueOf(replyv))
+		err = service.CallForFunction(ctx, mtype, reflect.ValueOf(argv), reflect.ValueOf(replyv))
 	}
 
 	argsReplyPools.Put(mtype.ArgType, argv)

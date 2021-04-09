@@ -17,8 +17,8 @@ func NewSessionRemote(c Connector) *SessionRemote {
 	}
 }
 
-func (s *SessionRemote) Bind(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
-	sessioinId := args.Session.GetSessionId()
+func (s *SessionRemote) Bind(ctx context.Context, session *rpc.Session, args *rpc.Args, reply *rpc.Reply) error {
+	sessioinId := session.GetSessionId()
 	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("Bind can't find session:%s", sessioinId)
@@ -29,8 +29,8 @@ func (s *SessionRemote) Bind(ctx context.Context, args *rpc.Args, reply *rpc.Rep
 	return nil
 }
 
-func (s *SessionRemote) UnBind(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
-	sessioinId := args.Session.GetSessionId()
+func (s *SessionRemote) UnBind(ctx context.Context, session *rpc.Session, args *rpc.Args, reply *rpc.Reply) error {
+	sessioinId := session.GetSessionId()
 	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("UnBind can't find session:%s", sessioinId)
@@ -41,8 +41,8 @@ func (s *SessionRemote) UnBind(ctx context.Context, args *rpc.Args, reply *rpc.R
 	return nil
 }
 
-func (s *SessionRemote) Push(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
-	sessioinId := args.Session.GetSessionId()
+func (s *SessionRemote) Push(ctx context.Context, session *rpc.Session, args *rpc.Args, reply *rpc.Reply) error {
+	sessioinId := session.GetSessionId()
 	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("Push can't find session:%s", sessioinId)
@@ -54,8 +54,8 @@ func (s *SessionRemote) Push(ctx context.Context, args *rpc.Args, reply *rpc.Rep
 	return nil
 }
 
-func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
-	sessioinId := args.Session.GetSessionId()
+func (s *SessionRemote) KickBySid(ctx context.Context, session *rpc.Session, args *rpc.Args, reply *rpc.Reply) error {
+	sessioinId := session.GetSessionId()
 	agent,err := s.connector.GetSessionMap().GetAgent(sessioinId)
 	if err != nil {
 		log.Error("KickBySid can't find session:%s", sessioinId)
@@ -69,7 +69,7 @@ func (s *SessionRemote) KickBySid(ctx context.Context, args *rpc.Args, reply *rp
 	return nil
 }
 
-func (s *SessionRemote) GetSessionCount(ctx context.Context, args *rpc.Args, reply *rpc.Reply) error {
+func (s *SessionRemote) GetSessionCount(ctx context.Context, session *rpc.Session, args *rpc.Args, reply *rpc.Reply) error {
 	count := s.connector.GetSessionMap().GetSessionCount()
 	reply.MsgResp = count
 	return nil

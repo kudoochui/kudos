@@ -6,7 +6,6 @@ import (
 )
 
 type Args struct {
-	Session Session
 	MsgId int
 	MsgReq interface{}
 }
@@ -29,7 +28,6 @@ type Reply struct {
 
 // Group message request
 type ArgsGroup struct {
-	Sids 	[]int64
 	Route 	string
 	Payload []byte
 }

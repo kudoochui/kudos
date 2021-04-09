@@ -1,10 +1,6 @@
 package channelService
 
 import (
-	"github.com/kudoochui/kudos/log"
-	"github.com/kudoochui/kudos/rpc"
-	"github.com/kudoochui/kudos/service/codecService"
-	"github.com/kudoochui/kudos/service/rpcClientService"
 	"sync"
 )
 
@@ -41,46 +37,4 @@ func (c *ChannelService) GetChannel(name string) *Channel {
 		return channel.(*Channel)
 	}
 	return nil
-}
-
-func (c *ChannelService) PushMessageBySid(nodeId string, route string, msg interface{}, sids []int64) {
-	data, err := codecService.GetCodecService().Marshal(msg)
-	if err != nil {
-		log.Error("marshal error: %v", err)
-	}
-	args := &rpc.ArgsGroup{
-		Sids:    sids,
-		Route:	 route,
-		Payload:  data,
-	}
-	reply := &rpc.ReplyGroup{}
-	rpcClientService.GetRpcClientService().Call(nodeId, "ChannelRemote","PushMessageByGroup", args, reply)
-}
-
-func (c *ChannelService) AsyncPushMessageBySid(nodeId string, route string, msg interface{}, sids []int64) {
-	data, err := codecService.GetCodecService().Marshal(msg)
-	if err != nil {
-		log.Error("marshal error: %v", err)
-	}
-	args := &rpc.ArgsGroup{
-		Sids:    sids,
-		Route:	 route,
-		Payload:  data,
-	}
-	reply := &rpc.ReplyGroup{}
-	rpcClientService.GetRpcClientService().Go(nodeId, "ChannelRemote","PushMessageByGroup", args, reply, nil)
-}
-
-func (c *ChannelService) Broadcast(nodeId string, route string, msg interface{}) {
-	data, err := codecService.GetCodecService().Marshal(msg)
-	if err != nil {
-		log.Error("marshal error: %v", err)
-	}
-	args := &rpc.ArgsGroup{
-		Sids:    []int64{},
-		Route:	 route,
-		Payload:  data,
-	}
-	reply := &rpc.ReplyGroup{}
-	rpcClientService.GetRpcClientService().Go(nodeId, "ChannelRemote","Broadcast", args, reply, nil)
 }

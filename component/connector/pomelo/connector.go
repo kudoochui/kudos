@@ -3,6 +3,7 @@ package pomelo
 import (
 	"github.com/kudoochui/kudos/component"
 	"github.com/kudoochui/kudos/component/connector"
+	"github.com/kudoochui/kudos/component/proxy"
 	"github.com/kudoochui/kudos/component/remote"
 	"github.com/kudoochui/kudos/filter"
 	"github.com/kudoochui/kudos/log"
@@ -18,7 +19,7 @@ type Connector struct{
 	channelRemote 	*connector.ChannelRemote
 	customerRoute 	rpc.CustomerRoute
 	remote			*remote.Remote
-	//proxy 			*proxy.Proxy
+	proxy 			*proxy.Proxy
 	handlerFilter 	filter.Filter
 	connection 		connector.Connection
 	timers 			*connector.Timers
@@ -40,13 +41,15 @@ func NewConnector(opts ...Option) *Connector{
 
 func (c *Connector) OnInit(server component.ServerImpl) {
 	c.nodeId = server.GetServerId()
-	c.remote = server.GetComponent("remote").(*remote.Remote)
-	//c.proxy = server.GetComponent("proxy").(*proxy.Proxy)
+	//c.remote = server.GetComponent("remote").(*remote.Remote)
+	c.proxy = server.GetComponent("proxy").(*proxy.Proxy)
 }
 
 func (c *Connector) OnRun(closeSig chan bool) {
-	c.remote.RegisterName(c.nodeId, c.sessionRemote,"")
-	c.remote.RegisterName(c.nodeId, c.channelRemote,"")
+	//c.remote.RegisterName(c.nodeId, c.sessionRemote,"")
+	//c.remote.RegisterName(c.nodeId, c.channelRemote,"")
+	c.proxy.Register(c.sessionRemote)
+	c.proxy.Register(c.channelRemote)
 
 	go c.timers.RunTimer(closeSig)
 

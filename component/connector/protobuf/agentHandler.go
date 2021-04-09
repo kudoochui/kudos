@@ -5,7 +5,6 @@ import (
 	"github.com/kudoochui/kudos/protocol/protobuf/pkg"
 	"github.com/kudoochui/kudos/rpc"
 	"github.com/kudoochui/kudos/service/msgService"
-	"github.com/kudoochui/kudos/service/rpcClientService"
 	"github.com/kudoochui/kudos/utils/timer"
 	"reflect"
 	"strings"
@@ -54,7 +53,6 @@ func (h *agentHandler) handleData(pkgType uint32, body []byte) {
 	}
 
 	args := &rpc.Args{
-		Session: *h.agent.session,
 		MsgId: int(msgInfo.RespId),
 		MsgReq:  data,
 	}
@@ -85,6 +83,6 @@ func (h *agentHandler) handleData(pkgType uint32, body []byte) {
 	if h.agent.connector.handlerFilter != nil {
 		h.agent.connector.handlerFilter.Before(servicePath+"."+serviceName, args)
 	}
-	//h.agent.connector.proxy.Go(servicePath, serviceName, args, msgResp, h.agent.chanRet)
-	rpcClientService.GetRpcClientService().Go(nodeName, servicePath, serviceName, args, msgResp, h.agent.chanRet)
+	h.agent.connector.proxy.Go(nodeName, servicePath, serviceName, h.agent.session, args, msgResp, h.agent.chanRet)
+	//rpcClientService.GetRpcClientService().Go(nodeName, servicePath, serviceName, h.agent.session, args, msgResp, h.agent.chanRet)
 }

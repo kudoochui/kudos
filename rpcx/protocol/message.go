@@ -5,9 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
-
 	"github.com/kudoochui/kudos/rpcx/util"
+	"io"
 )
 
 var (
@@ -98,6 +97,14 @@ const (
 // Message is the generic type of Request and Response.
 type Message struct {
 	*Header
+
+	//----session info
+	NodeId		string
+	SessionId	int64
+	UserId 		int64
+	//Settings	map[string]string
+	//----------------
+
 	ServicePath   string
 	ServiceMethod string
 	Metadata      map[string]string
@@ -222,6 +229,9 @@ func (m Message) Clone() *Message {
 	c.Header = &header
 	c.ServicePath = m.ServicePath
 	c.ServiceMethod = m.ServiceMethod
+	c.NodeId = m.NodeId
+	c.SessionId = m.SessionId
+	c.UserId = m.UserId
 	return c
 }
 
@@ -253,12 +263,16 @@ func (m Message) EncodeSlicePointer() *[]byte {
 		}
 	}
 
-	totalL := (4 + spL) + (4 + smL) + (4 + len(meta)) + (4 + len(payload))
+	nL := len(m.NodeId)
+
+	totalL := (4 + spL) + (4 + smL) + (4 + len(meta)) + (4 + nL) + 8 + 8 + (4 + len(payload))
 
 	// header + dataLen + spLen + sp + smLen + sm + metaL + meta + payloadLen + payload
 	metaStart := 12 + 4 + (4 + spL) + (4 + smL)
-
-	payLoadStart := metaStart + (4 + len(meta))
+	nodeIdStart := metaStart + (4 + len(meta))
+	sessionIdStart := nodeIdStart + (4 + nL)
+	userIdStart := sessionIdStart + 8
+	payLoadStart := userIdStart + 8
 	l := 12 + 4 + totalL
 
 	data := bufferPool.Get(l)
@@ -275,6 +289,13 @@ func (m Message) EncodeSlicePointer() *[]byte {
 
 	binary.BigEndian.PutUint32((*data)[metaStart:metaStart+4], uint32(len(meta)))
 	copy((*data)[metaStart+4:], meta)
+
+	binary.BigEndian.PutUint32((*data)[nodeIdStart:nodeIdStart+4], uint32(nL))
+	copy((*data)[nodeIdStart+4:], util.StringToSliceByte(m.NodeId))
+
+	binary.BigEndian.PutUint64((*data)[sessionIdStart:sessionIdStart+8], uint64(m.SessionId))
+
+	binary.BigEndian.PutUint64((*data)[userIdStart:userIdStart+8], uint64(m.UserId))
 
 	binary.BigEndian.PutUint32((*data)[payLoadStart:payLoadStart+4], uint32(len(payload)))
 	copy((*data)[payLoadStart+4:], payload)
@@ -484,6 +505,21 @@ func (m *Message) Decode(r io.Reader) error {
 	}
 	n = nEnd
 
+	// parse nodeId
+	l = binary.BigEndian.Uint32(data[n : n+4])
+	n = n + 4
+	nEnd = n + int(l)
+	m.NodeId = util.SliceByteToString(data[n:nEnd])
+	n = nEnd
+
+	nEnd = n + 8
+	m.SessionId = int64(binary.BigEndian.Uint64(data[n : nEnd]))
+	n = nEnd
+
+	nEnd = n + 8
+	m.UserId = int64(binary.BigEndian.Uint64(data[n : nEnd]))
+	n = nEnd
+
 	// parse payload
 	l = binary.BigEndian.Uint32(data[n : n+4])
 	_ = l
@@ -512,6 +548,9 @@ func (m *Message) Reset() {
 	m.data = m.data[:0]
 	m.ServicePath = ""
 	m.ServiceMethod = ""
+	m.NodeId = ""
+	m.SessionId = 0
+	m.UserId = 0
 }
 
 var zeroHeaderArray Header

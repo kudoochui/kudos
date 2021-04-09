@@ -22,9 +22,9 @@ var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 // Precompute the reflect type for context.
 var typeOfContext = reflect.TypeOf((*context.Context)(nil)).Elem()
 
-type methodType struct {
+type MethodType struct {
 	sync.Mutex // protects counters
-	method     reflect.Method
+	Method     reflect.Method
 	ArgType    reflect.Type
 	ReplyType  reflect.Type
 	// numCalls   uint
@@ -37,12 +37,12 @@ type functionType struct {
 	ReplyType  reflect.Type
 }
 
-type service struct {
-	name     string                   // name of service
-	rcvr     reflect.Value            // receiver of methods for the service
-	typ      reflect.Type             // type of the receiver
-	method   map[string]*methodType   // registered methods
-	function map[string]*functionType // registered functions
+type Service struct {
+	Name     string                   // name of service
+	Rcvr     reflect.Value            // receiver of methods for the service
+	Typ      reflect.Type             // type of the receiver
+	Method   map[string]*MethodType   // registered methods
+	Function map[string]*functionType // registered functions
 }
 
 func isExported(name string) bool {
@@ -119,16 +119,16 @@ func (s *Server) register(rcvr interface{}, name string, useName bool) (string, 
 	s.serviceMapMu.Lock()
 	defer s.serviceMapMu.Unlock()
 
-	service := new(service)
-	service.typ = reflect.TypeOf(rcvr)
-	service.rcvr = reflect.ValueOf(rcvr)
-	sname := reflect.Indirect(service.rcvr).Type().Name() // Type
+	service := new(Service)
+	service.Typ = reflect.TypeOf(rcvr)
+	service.Rcvr = reflect.ValueOf(rcvr)
+	sname := reflect.Indirect(service.Rcvr).Type().Name() // Type
 	serviceName := sname
 	if useName {
 		sname = name
 	}
 	if sname == "" {
-		errorStr := "rpcx.Register: no service name for type " + service.typ.String()
+		errorStr := "rpcx.Register: no service name for type " + service.Typ.String()
 		log.Error(errorStr)
 		return sname, errors.New(errorStr)
 	}
@@ -137,16 +137,16 @@ func (s *Server) register(rcvr interface{}, name string, useName bool) (string, 
 		log.Error(errorStr)
 		return sname, errors.New(errorStr)
 	}
-	service.name = serviceName
+	service.Name = serviceName
 
 	// Install the methods
-	service.method = suitableMethods(service.typ, true)
+	service.Method = SuitableMethods(service.Typ, true)
 
-	if len(service.method) == 0 {
+	if len(service.Method) == 0 {
 		var errorStr string
 
 		// To help the user, see if a pointer receiver would work.
-		method := suitableMethods(reflect.PtrTo(service.typ), false)
+		method := SuitableMethods(reflect.PtrTo(service.Typ), false)
 		if len(method) != 0 {
 			errorStr = "rpcx.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
 		} else {
@@ -155,7 +155,7 @@ func (s *Server) register(rcvr interface{}, name string, useName bool) (string, 
 		log.Error(errorStr)
 		return sname, errors.New(errorStr)
 	}
-	s.serviceMap[service.name] = service
+	s.serviceMap[service.Name] = service
 	return sname, nil
 }
 
@@ -165,9 +165,9 @@ func (s *Server) registerFunction(servicePath string, fn interface{}, name strin
 
 	ss := s.serviceMap[servicePath]
 	if ss == nil {
-		ss = new(service)
-		ss.name = servicePath
-		ss.function = make(map[string]*functionType)
+		ss = new(Service)
+		ss.Name = servicePath
+		ss.Function = make(map[string]*functionType)
 	}
 
 	f, ok := fn.(reflect.Value)
@@ -227,7 +227,7 @@ func (s *Server) registerFunction(servicePath string, fn interface{}, name strin
 	}
 
 	// Install the methods
-	ss.function[fname] = &functionType{fn: f, ArgType: argType, ReplyType: replyType}
+	ss.Function[fname] = &functionType{fn: f, ArgType: argType, ReplyType: replyType}
 	s.serviceMap[servicePath] = ss
 
 	argsReplyPools.Init(argType)
@@ -235,10 +235,10 @@ func (s *Server) registerFunction(servicePath string, fn interface{}, name strin
 	return fname, nil
 }
 
-// suitableMethods returns suitable Rpc methods of typ, it will report
+// SuitableMethods returns suitable Rpc methods of typ, it will report
 // error using log if reportErr is true.
-func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
-	methods := make(map[string]*methodType)
+func SuitableMethods(typ reflect.Type, reportErr bool) map[string]*MethodType {
+	methods := make(map[string]*MethodType)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
 		mtype := method.Type
@@ -248,7 +248,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 			continue
 		}
 		// Method needs four ins: receiver, context.Context, *args, *reply.
-		if mtype.NumIn() != 4 {
+		if mtype.NumIn() != 5 {
 			if reportErr {
 				log.Debug("method ", mname, " has wrong number of ins:", mtype.NumIn())
 			}
@@ -264,7 +264,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		}
 
 		// Second arg need not be a pointer.
-		argType := mtype.In(2)
+		argType := mtype.In(3)
 		if !isExportedOrBuiltinType(argType) {
 			if reportErr {
 				log.Info(mname, " parameter type not exported: ", argType)
@@ -272,7 +272,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 			continue
 		}
 		// Third arg must be a pointer.
-		replyType := mtype.In(3)
+		replyType := mtype.In(4)
 		if replyType.Kind() != reflect.Ptr {
 			if reportErr {
 				log.Info("method", mname, " reply type not a pointer:", replyType)
@@ -300,7 +300,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 			}
 			continue
 		}
-		methods[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
+		methods[mname] = &MethodType{Method: method, ArgType: argType, ReplyType: replyType}
 
 		argsReplyPools.Init(argType)
 		argsReplyPools.Init(replyType)
@@ -325,7 +325,7 @@ func (s *Server) UnregisterAll() error {
 	return nil
 }
 
-func (s *service) call(ctx context.Context, mtype *methodType, argv, replyv reflect.Value) (err error) {
+func (s *Service) Call(ctx context.Context, mtype *MethodType, session, argv, replyv reflect.Value) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			buf := make([]byte, 4096)
@@ -333,17 +333,17 @@ func (s *service) call(ctx context.Context, mtype *methodType, argv, replyv refl
 			buf = buf[:n]
 
 			err = fmt.Errorf("[service internal error]: %v, method: %s, argv: %+v",
-				r, mtype.method.Name, argv.Interface())
+				r, mtype.Method.Name, argv.Interface())
 
 			err2 := fmt.Errorf("[service internal error]: %v, method: %s, argv: %+v, stack: %s",
-				r, mtype.method.Name, argv.Interface(), buf)
+				r, mtype.Method.Name, argv.Interface(), buf)
 			log.Handle(err2)
 		}
 	}()
 
-	function := mtype.method.Func
+	function := mtype.Method.Func
 	// Invoke the method, providing a new value for the reply.
-	returnValues := function.Call([]reflect.Value{s.rcvr, reflect.ValueOf(ctx), argv, replyv})
+	returnValues := function.Call([]reflect.Value{s.Rcvr, reflect.ValueOf(ctx), session, argv, replyv})
 	// The return value for the method is an error.
 	errInter := returnValues[0].Interface()
 	if errInter != nil {
@@ -353,7 +353,7 @@ func (s *service) call(ctx context.Context, mtype *methodType, argv, replyv refl
 	return nil
 }
 
-func (s *service) callForFunction(ctx context.Context, ft *functionType, argv, replyv reflect.Value) (err error) {
+func (s *Service) CallForFunction(ctx context.Context, ft *functionType, argv, replyv reflect.Value) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			// log.Errorf("failed to invoke service: %v, stacks: %s", r, string(debug.Stack()))
