@@ -11,38 +11,38 @@ import (
 )
 
 type ServerSession struct {
-	NodeId	string
-	SessionId	int64
-	UserId 		int64
+	nodeId	string
+	sessionId	int64
+	userId 		int64
 
-	Settings	map[string]string
+	settings	map[string]string
 	server 		*Server
 	conn 		net.Conn
 }
 
 func NewSessionFromRpc(nodeId string, sessionId int64, userId int64) *ServerSession  {
 	return &ServerSession{
-		NodeId: nodeId,
-		SessionId: sessionId,
-		UserId: userId,
-		Settings:  map[string]string{},
+		nodeId: nodeId,
+		sessionId: sessionId,
+		userId: userId,
+		settings:  map[string]string{},
 	}
 }
 
 func (s *ServerSession) GetNodeId() string {
-	return s.NodeId
+	return s.nodeId
 }
 
 func (s *ServerSession) GetSessionId() int64 {
-	return s.SessionId
+	return s.sessionId
 }
 
 func (s *ServerSession) GetUserId() int64 {
-	return s.UserId
+	return s.userId
 }
 
 func (s *ServerSession) SetUserId(userId int64) {
-	s.UserId = userId
+	s.userId = userId
 }
 
 func (s *ServerSession) SyncSettings(settings map[string]interface{}) {
@@ -50,11 +50,11 @@ func (s *ServerSession) SyncSettings(settings map[string]interface{}) {
 	for k,v := range settings {
 		_settings[k] = v.(string)
 	}
-	s.Settings = _settings
+	s.settings = _settings
 }
 
 func (s *ServerSession) Bind(userId int64) {
-	s.UserId = userId
+	s.userId = userId
 
 	args := &rpc.Args{
 		MsgReq:  userId,
@@ -64,7 +64,7 @@ func (s *ServerSession) Bind(userId int64) {
 }
 
 func (s *ServerSession) UnBind() {
-	s.UserId = 0
+	s.userId = 0
 
 	args := &rpc.Args{
 	}
@@ -73,30 +73,30 @@ func (s *ServerSession) UnBind() {
 }
 
 func (s *ServerSession) Get(key string) string {
-	return s.Settings[key]
+	return s.settings[key]
 }
 
 func (s *ServerSession) Set(key, value string) {
-	if s.Settings == nil {
-		s.Settings = make(map[string]string)
+	if s.settings == nil {
+		s.settings = make(map[string]string)
 	}
-	s.Settings[key] = value
+	s.settings[key] = value
 }
 
 func (s *ServerSession) Remove(key string) {
-	delete(s.Settings, key)
+	delete(s.settings, key)
 }
 
 func (s *ServerSession) Clone() *ServerSession {
 	session := &ServerSession{
-		NodeId:   s.NodeId,
-		SessionId:  s.SessionId,
-		UserId:     s.UserId,
-		Settings:   map[string]string{},
+		nodeId:   s.nodeId,
+		sessionId:  s.sessionId,
+		userId:     s.userId,
+		settings:   map[string]string{},
 	}
 
-	for k,v := range s.Settings {
-		session.Settings[k] = v
+	for k,v := range s.settings {
+		session.settings[k] = v
 	}
 	return session
 }
@@ -104,7 +104,7 @@ func (s *ServerSession) Clone() *ServerSession {
 // synchronize setting with frontend session
 func (s *ServerSession) Push(){
 	args := &rpc.Args{
-		MsgReq: s.Settings,
+		MsgReq: s.settings,
 	}
 	s.sendMessage("SessionRemote","Push", nil, args)
 }
@@ -135,9 +135,9 @@ func (s *ServerSession) sendMessage(servicePath, serviceMethod string, metadata 
 	req.SetSerializeType(protocol.MsgPack)
 	req.ServicePath = servicePath
 	req.ServiceMethod = serviceMethod
-	req.NodeId = s.NodeId
-	req.SessionId = s.SessionId
-	req.UserId = s.UserId
+	req.NodeId = s.nodeId
+	req.SessionId = s.sessionId
+	req.UserId = s.userId
 	req.Metadata = metadata
 
 	codec := share.Codecs[protocol.MsgPack]
