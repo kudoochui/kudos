@@ -71,7 +71,7 @@ type Server struct {
 	serviceMap   map[string]*Service
 
 	mu         sync.RWMutex
-	activeConn map[net.Conn]*agent
+	activeConn map[net.Conn]*Agent
 	doneChan   chan struct{}
 	seq        uint64
 
@@ -100,7 +100,7 @@ func NewServer(options ...OptionFn) *Server {
 	s := &Server{
 		Plugins:    &pluginContainer{},
 		options:    make(map[string]interface{}),
-		activeConn: make(map[net.Conn]*agent),
+		activeConn: make(map[net.Conn]*Agent),
 		doneChan:   make(chan struct{}),
 		serviceMap: make(map[string]*Service),
 	}
@@ -380,11 +380,11 @@ func (s *Server) auth(ctx context.Context, req *protocol.Message) error {
 	return nil
 }
 
-func (s *Server) handleRequest(ctx context.Context, req *protocol.Message) (res *protocol.Message, err error) {
+func (s *Server) handleRequest(agent *Agent, ctx context.Context, req *protocol.Message) (res *protocol.Message, err error) {
 	serviceName := req.ServicePath
 	methodName := req.ServiceMethod
 
-	session := NewSessionFromRpc(req.NodeId, req.SessionId, req.UserId)
+	session := NewSessionFromRpc(req.NodeId, req.SessionId, req.UserId, agent)
 	session.server = s
 	session.conn = ctx.Value(RemoteConnContextKey).(net.Conn)
 

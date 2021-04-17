@@ -15,21 +15,23 @@ import (
 	"time"
 )
 
-type agent struct {
+type Agent struct {
 	server  *Server
 	conn 	net.Conn
 	sessionMap map[int64]mailbox.Mailbox
+
+	data	interface{}				//attachment
 }
 
-func newAgent(s *Server, conn net.Conn) *agent {
-	return &agent{
+func newAgent(s *Server, conn net.Conn) *Agent {
+	return &Agent{
 		server: s,
 		conn: conn,
 		sessionMap:make(map[int64]mailbox.Mailbox),
 	}
 }
 
-func (a *agent)serveConn() {
+func (a *Agent)serveConn() {
 	s := a.server
 	conn := a.conn
 
@@ -159,11 +161,11 @@ func (a *agent)serveConn() {
 	}
 }
 
-func (a *agent) InvokeSystemMessage(message interface{}) {
+func (a *Agent) InvokeSystemMessage(message interface{}) {
 
 }
 
-func (a *agent) InvokeUserMessage(message interface{}) {
+func (a *Agent) InvokeUserMessage(message interface{}) {
 	s := a.server
 	conn := a.conn
 	msg := message.(*MessageEnvelope)
@@ -184,7 +186,7 @@ func (a *agent) InvokeUserMessage(message interface{}) {
 	if share.Trace {
 		log.Debugf("server handle request %+v from conn: %v", req, conn.RemoteAddr().String())
 	}
-	res, err := s.handleRequest(ctx, req)
+	res, err := s.handleRequest(a, ctx, req)
 	if err != nil {
 		log.Warnf("rpcx: failed to handle request: %v", err)
 	}
@@ -219,4 +221,12 @@ func (a *agent) InvokeUserMessage(message interface{}) {
 
 	protocol.FreeMsg(req)
 	protocol.FreeMsg(res)
+}
+
+func (a *Agent) GetData() interface{} {
+	return a.data
+}
+
+func (a *Agent) SetData(data interface{})  {
+	a.data = data
 }

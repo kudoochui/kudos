@@ -237,7 +237,7 @@ func filterByStateAndGroup(group string, servers map[string]string) {
 
 // selects a client from candidates base on c.selectMode
 func (c *xClient) selectClient(ctx context.Context, servicePath, serviceMethod string, session protocol.ISession, args interface{}) (string, RPCClient, error) {
-	k := session.Get("cachedServer")
+	k := session.GetCache(c.nodeName + "cachedServer")
 	if k == "" {
 		c.mu.Lock()
 		fn := c.selector.Select
@@ -246,12 +246,15 @@ func (c *xClient) selectClient(ctx context.Context, servicePath, serviceMethod s
 		}
 		k = fn(ctx, servicePath, serviceMethod, args)
 		c.mu.Unlock()
-		session.Set("cachedServer", k)
+		session.SetCache(c.nodeName + "cachedServer", k)
 	}
 	if k == "" {
 		return "", nil, ErrXClientNoServer
 	}
 	client, err := c.getCachedClient(k)
+	if err != nil {
+		session.RemoveCache(c.nodeName + "cachedServer")
+	}
 	return k, client, err
 }
 

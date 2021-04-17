@@ -163,7 +163,7 @@ func (s *Server) handleGatewayRequest(w http.ResponseWriter, r *http.Request, pa
 	newCtx := context.WithValue(context.WithValue(ctx, share.ReqMetaDataKey, req.Metadata),
 		share.ResMetaDataKey, resMetadata)
 
-	res, err := s.handleRequest(newCtx, req)
+	res, err := s.handleRequest(nil, newCtx, req)
 	defer protocol.FreeMsg(res)
 
 	if err != nil {

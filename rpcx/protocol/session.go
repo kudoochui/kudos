@@ -6,6 +6,9 @@ type ISession interface {
 	GetUserId() int64
 	Get(key string) string
 	Set(key, value string)
+	GetCache(key string) string
+	SetCache(key, value string)
+	RemoveCache(key string)
 }
 
 type DummySession struct {
@@ -33,5 +36,17 @@ func (d *DummySession) Get(key string) string {
 }
 
 func (d *DummySession) Set(key, value string) {
+
+}
+
+func (d *DummySession) GetCache(key string) string {
+	return ""
+}
+
+func (d *DummySession) SetCache(key, value string) {
+
+}
+
+func (d *DummySession) RemoveCache(key string) {
 
 }
