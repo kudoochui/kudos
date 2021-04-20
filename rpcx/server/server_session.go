@@ -18,10 +18,10 @@ type ServerSession struct {
 	settings	map[string]string
 	server 		*Server
 	conn 		net.Conn
-	agent 		*Agent
+	agent 		*ConnAgent
 }
 
-func NewSessionFromRpc(nodeId string, sessionId int64, userId int64, agent *Agent) *ServerSession  {
+func NewSessionFromRpc(nodeId string, sessionId int64, userId int64, agent *ConnAgent) *ServerSession  {
 	return &ServerSession{
 		nodeId: nodeId,
 		sessionId: sessionId,
@@ -31,7 +31,7 @@ func NewSessionFromRpc(nodeId string, sessionId int64, userId int64, agent *Agen
 	}
 }
 
-func (s *ServerSession) GetAgent() *Agent {
+func (s *ServerSession) GetConnectionAgent() *ConnAgent {
 	return s.agent
 }
 

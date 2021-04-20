@@ -12,26 +12,26 @@ import (
 	"net"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
-type Agent struct {
+type ConnAgent struct {
 	server  *Server
 	conn 	net.Conn
-	sessionMap map[int64]mailbox.Mailbox
+	sessionMap sync.Map
 
 	data	interface{}				//attachment
 }
 
-func newAgent(s *Server, conn net.Conn) *Agent {
-	return &Agent{
+func newAgent(s *Server, conn net.Conn) *ConnAgent {
+	return &ConnAgent{
 		server: s,
 		conn: conn,
-		sessionMap:make(map[int64]mailbox.Mailbox),
 	}
 }
 
-func (a *Agent)serveConn() {
+func (a *ConnAgent)serveConn() {
 	s := a.server
 	conn := a.conn
 
@@ -150,22 +150,30 @@ func (a *Agent)serveConn() {
 		}
 
 		sid := req.SessionId
-		var mb mailbox.Mailbox
+		var mb interface{}
 		var ok bool
-		if mb, ok = a.sessionMap[sid]; !ok {
+		if mb, ok = a.sessionMap.Load(sid); !ok {
 			mb = mailbox.Unbounded()
-			a.sessionMap[sid] = mb
-			mb.RegisterHandlers(a, mailbox.NewDefaultDispatcher(100))
+			a.sessionMap.Store(sid, mb)
+			mb.(mailbox.Mailbox).RegisterHandlers(a, mailbox.NewDefaultDispatcher(100))
 		}
-		mb.PostUserMessage(newMessageEnvelope(ctx, req))
+		mb.(mailbox.Mailbox).PostUserMessage(newMessageEnvelope(ctx, req))
 	}
 }
 
-func (a *Agent) InvokeSystemMessage(message interface{}) {
+// Run in user actor goroutine
+func (a *ConnAgent) RemoveSession(sessionId int64) {
+	if mb, ok := a.sessionMap.Load(sessionId); ok {
+		mb.(mailbox.Mailbox).PostSystemMessage(&mailbox.SuspendMailbox{})
+	}
+	a.sessionMap.Delete(sessionId)
+}
+
+func (a *ConnAgent) InvokeSystemMessage(message interface{}) {
 
 }
 
-func (a *Agent) InvokeUserMessage(message interface{}) {
+func (a *ConnAgent) InvokeUserMessage(message interface{}) {
 	s := a.server
 	conn := a.conn
 	msg := message.(*MessageEnvelope)
@@ -223,10 +231,10 @@ func (a *Agent) InvokeUserMessage(message interface{}) {
 	protocol.FreeMsg(res)
 }
 
-func (a *Agent) GetData() interface{} {
+func (a *ConnAgent) GetData() interface{} {
 	return a.data
 }
 
-func (a *Agent) SetData(data interface{})  {
+func (a *ConnAgent) SetData(data interface{})  {
 	a.data = data
 }
