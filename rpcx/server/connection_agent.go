@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"github.com/kudoochui/kudos/rpcx/log"
 	"github.com/kudoochui/kudos/rpcx/mailbox"
 	"github.com/kudoochui/kudos/rpcx/protocol"
@@ -13,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -21,13 +23,17 @@ type ConnAgent struct {
 	conn 	net.Conn
 	sessionMap sync.Map
 
-	data	interface{}				//attachment
+	userDataMap	map[int64]interface{}				//data attachment: uid <=> playerData
+	dataMutex sync.RWMutex							//TODO: improve the lock
 }
+
+type TimeTickCallback func(*ServerSession)
 
 func newAgent(s *Server, conn net.Conn) *ConnAgent {
 	return &ConnAgent{
 		server: s,
 		conn: conn,
+		userDataMap: make(map[int64]interface{}),
 	}
 }
 
@@ -150,15 +156,19 @@ func (a *ConnAgent)serveConn() {
 		}
 
 		sid := req.SessionId
-		var mb interface{}
-		var ok bool
-		if mb, ok = a.sessionMap.Load(sid); !ok {
-			mb = mailbox.Unbounded()
-			a.sessionMap.Store(sid, mb)
-			mb.(mailbox.Mailbox).RegisterHandlers(a, mailbox.NewDefaultDispatcher(100))
-		}
-		mb.(mailbox.Mailbox).PostUserMessage(newMessageEnvelope(ctx, req))
+		a.PostMessage(ctx, sid, req)
 	}
+}
+
+func (a *ConnAgent) PostMessage(ctx *share.Context, sid int64, req *protocol.Message) {
+	var mb interface{}
+	var ok bool
+	if mb, ok = a.sessionMap.Load(sid); !ok {
+		mb = mailbox.Unbounded()
+		a.sessionMap.Store(sid, mb)
+		mb.(mailbox.Mailbox).RegisterHandlers(a, mailbox.NewDefaultDispatcher(100))
+	}
+	mb.(mailbox.Mailbox).PostUserMessage(newMessageEnvelope(ctx, req))
 }
 
 // Run in user actor goroutine
@@ -167,6 +177,56 @@ func (a *ConnAgent) RemoveSession(sessionId int64) {
 		mb.(mailbox.Mailbox).PostSystemMessage(&mailbox.SuspendMailbox{})
 	}
 	a.sessionMap.Delete(sessionId)
+}
+
+// Local call, no return
+func (a *ConnAgent) Go(route string, session protocol.ISession, args interface{}) error {
+	rr := strings.Split(route, ".")
+	if len(rr) < 3 {
+		return errors.New("invalid route")
+	}
+
+	ctx := share.WithValue(context.Background(), StartSendRequestContextKey, time.Now().UnixNano())
+	a.server.Plugins.DoPreWriteRequest(ctx)
+
+	req := protocol.GetPooledMsg()
+	req.SetMessageType(protocol.Request)
+
+	seq := atomic.AddUint64(&a.server.seq, 1)
+	req.SetSeq(seq)
+	req.SetOneway(true)
+	req.SetSerializeType(protocol.MsgPack)
+	req.ServicePath = rr[1]
+	req.ServiceMethod = rr[2]
+	req.NodeId = session.GetNodeId()
+	req.SessionId = session.GetSessionId()
+	req.UserId = session.GetUserId()
+
+	// TODO: local call, no need to pack
+	codec := share.Codecs[protocol.MsgPack]
+	data, err := codec.Encode(args)
+	if err != nil {
+		return err
+	}
+	req.Payload = data
+
+	a.server.Plugins.DoPostWriteRequest(ctx, req, err)
+	a.PostMessage(ctx, session.GetSessionId(), req)
+	return nil
+}
+
+func (a *ConnAgent) RegisterTimeTick(session *ServerSession, cb TimeTickCallback) {
+	if mb, ok := a.sessionMap.Load(session.GetSessionId()); ok {
+		mb.(mailbox.Mailbox).PostTimeMessage(newTimeEnvelope(session, cb))
+	} else {
+		log.Errorf("RegisterTimeTick error %+v", session)
+	}
+}
+
+// Tick every 100ms
+func (a *ConnAgent) OnTimeTick(message interface{}) {
+	msg := message.(*TimeEnvelope)
+	msg.Cb(msg.Session)
 }
 
 func (a *ConnAgent) InvokeSystemMessage(message interface{}) {
@@ -231,10 +291,16 @@ func (a *ConnAgent) InvokeUserMessage(message interface{}) {
 	protocol.FreeMsg(res)
 }
 
-func (a *ConnAgent) GetData() interface{} {
-	return a.data
+func (a *ConnAgent) GetData(userId int64) interface{} {
+	a.dataMutex.RLock()
+	defer a.dataMutex.RUnlock()
+
+	return a.userDataMap[userId]
 }
 
-func (a *ConnAgent) SetData(data interface{})  {
-	a.data = data
+func (a *ConnAgent) SetData(userId int64, data interface{})  {
+	a.dataMutex.Lock()
+	defer a.dataMutex.Unlock()
+
+	a.userDataMap[userId] = data
 }

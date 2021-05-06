@@ -5,18 +5,21 @@ import (
 	"github.com/kudoochui/kudos/rpcx/mailbox/queue/mpsc"
 	"runtime"
 	"sync/atomic"
+	"time"
 )
 
 // MessageInvoker is the interface used by a mailbox to forward messages for processing
 type MessageInvoker interface {
 	InvokeSystemMessage(interface{})
 	InvokeUserMessage(interface{})
+	OnTimeTick(interface{})
 }
 
 // Mailbox interface is used to enqueue messages to the mailbox
 type Mailbox interface {
 	PostUserMessage(message interface{})
 	PostSystemMessage(message interface{})
+	PostTimeMessage(message interface{})
 	RegisterHandlers(invoker MessageInvoker, dispatcher Dispatcher)
 }
 
@@ -28,6 +31,7 @@ const (
 type defaultMailbox struct {
 	userMailbox     queue
 	systemMailbox   *mpsc.Queue
+	timeMailbox 	interface{}				//only one message
 	schedulerStatus int32
 	userMessages    int32
 	sysMessages     int32
@@ -46,6 +50,10 @@ func (m *defaultMailbox) PostSystemMessage(message interface{}) {
 	m.systemMailbox.Push(message)
 	atomic.AddInt32(&m.sysMessages, 1)
 	m.schedule()
+}
+
+func (m *defaultMailbox) PostTimeMessage(message interface{}) {
+	m.timeMailbox = message
 }
 
 func (m *defaultMailbox) RegisterHandlers(invoker MessageInvoker, dispatcher Dispatcher) {
@@ -88,8 +96,15 @@ func (m *defaultMailbox) run() {
 		}
 	}()
 
+	tick := time.Tick(time.Millisecond * 100)
 	i, t := 0, m.dispatcher.Throughput()
 	for {
+		select {
+		case <-tick:
+			m.invoker.OnTimeTick(m.timeMailbox)
+		default:
+		}
+
 		if i > t {
 			i = 0
 			runtime.Gosched()

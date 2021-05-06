@@ -16,3 +16,12 @@ func newMessageEnvelope(ctx *share.Context, req *protocol.Message) *MessageEnvel
 		Request: req,
 	}
 }
+
+type TimeEnvelope struct {
+	Session *ServerSession
+	Cb TimeTickCallback
+}
+
+func newTimeEnvelope(session *ServerSession, cb TimeTickCallback) *TimeEnvelope {
+	return &TimeEnvelope{Session:session, Cb:cb}
+}
