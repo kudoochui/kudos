@@ -2,10 +2,13 @@ package rpcClientService
 
 import (
 	"context"
+	"errors"
 	"github.com/kudoochui/kudos/filter"
 	"github.com/kudoochui/kudos/log"
+	logs "github.com/kudoochui/kudos/log/beego"
 	"github.com/kudoochui/kudos/rpcx/client"
 	"github.com/kudoochui/kudos/rpcx/protocol"
+	"strings"
 	"sync"
 )
 
@@ -67,7 +70,15 @@ func (r *RpcClientService) Initialize(opts ...Option) {
 	r.lock.Unlock()
 }
 
-func (r *RpcClientService) Call(nodeName string, servicePath string, serviceMethod string, session protocol.ISession, args interface{}, reply interface{}) error {
+func (r *RpcClientService) Call(route string, session protocol.ISession, args interface{}, reply interface{}) error {
+	rr := strings.Split(route, ".")
+	if len(rr) < 3 {
+		return errors.New("invalid route")
+	}
+	nodeName := rr[0]
+	servicePath := rr[1]
+	serviceMethod := rr[2]
+
 	if r.rpcFilter != nil {
 		r.rpcFilter.Before(servicePath + "." + serviceMethod, args)
 	}
@@ -83,7 +94,16 @@ func (r *RpcClientService) Call(nodeName string, servicePath string, serviceMeth
 	return err
 }
 
-func (r *RpcClientService) Go(nodeName string, servicePath string, serviceMethod string, session protocol.ISession,args interface{}, reply interface{}, chanRet chan *client.Call) {
+func (r *RpcClientService) Go(route string, session protocol.ISession,args interface{}, reply interface{}, chanRet chan *client.Call) {
+	rr := strings.Split(route, ".")
+	if len(rr) < 3 {
+		logs.Error("invalid route")
+		return
+	}
+	nodeName := rr[0]
+	servicePath := rr[1]
+	serviceMethod := rr[2]
+
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 	if _,err := r.rpcClient.Go(context.TODO(),nodeName, servicePath, serviceMethod, session, args, reply, chanRet); err != nil {
