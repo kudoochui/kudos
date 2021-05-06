@@ -275,28 +275,28 @@ func SuitableMethods(typ reflect.Type, reportErr bool) map[string]*MethodType {
 		replyType := mtype.In(4)
 		if replyType.Kind() != reflect.Ptr {
 			if reportErr {
-				log.Info("method", mname, " reply type not a pointer:", replyType)
+				log.Info("method ", mname, " reply type not a pointer:", replyType)
 			}
 			continue
 		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
 			if reportErr {
-				log.Info("method", mname, " reply type not exported:", replyType)
+				log.Info("method ", mname, " reply type not exported:", replyType)
 			}
 			continue
 		}
 		// Method needs one out.
 		if mtype.NumOut() != 1 {
 			if reportErr {
-				log.Info("method", mname, " has wrong number of outs:", mtype.NumOut())
+				log.Info("method ", mname, " has wrong number of outs:", mtype.NumOut())
 			}
 			continue
 		}
 		// The return type of the method must be error.
 		if returnType := mtype.Out(0); returnType != typeOfError {
 			if reportErr {
-				log.Info("method", mname, " returns ", returnType.String(), " not error")
+				log.Info("method ", mname, " returns ", returnType.String(), " not error")
 			}
 			continue
 		}
