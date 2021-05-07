@@ -348,6 +348,8 @@ func isShutdown(s *Server) bool {
 
 func closeChannel(s *Server, conn net.Conn) {
 	s.mu.Lock()
+	agent := s.activeConn[conn]
+	agent.OnClose()
 	delete(s.activeConn, conn)
 	s.mu.Unlock()
 	conn.Close()

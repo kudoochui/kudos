@@ -18,13 +18,19 @@ import (
 	"time"
 )
 
+type userDataCache struct {
+	userDataMap 		sync.Map
+}
+
+var globalUserDataCache = &userDataCache{}
+
 type ConnAgent struct {
 	server  *Server
 	conn 	net.Conn
 	sessionMap sync.Map
 
 	userDataMap	map[int64]interface{}				//data attachment: uid <=> playerData
-	dataMutex sync.RWMutex							//TODO: improve the lock
+	dataMutex sync.RWMutex
 }
 
 type TimeTickCallback func(*ServerSession)
@@ -34,6 +40,13 @@ func newAgent(s *Server, conn net.Conn) *ConnAgent {
 		server: s,
 		conn: conn,
 		userDataMap: make(map[int64]interface{}),
+	}
+}
+
+func (a *ConnAgent) OnClose() {
+	// save user data to global
+	for uid,c := range a.userDataMap {
+		globalUserDataCache.userDataMap.Store(uid, c)
 	}
 }
 
@@ -293,9 +306,20 @@ func (a *ConnAgent) InvokeUserMessage(message interface{}) {
 
 func (a *ConnAgent) GetData(userId int64) interface{} {
 	a.dataMutex.RLock()
-	defer a.dataMutex.RUnlock()
+	if c, ok := a.userDataMap[userId]; ok {
+		a.dataMutex.RUnlock()
+		return c
+	}
+	a.dataMutex.RUnlock()
 
-	return a.userDataMap[userId]
+	// find global
+	if c, ok := globalUserDataCache.userDataMap.Load(userId); ok {
+		a.SetData(userId, c)
+		globalUserDataCache.userDataMap.Delete(userId)
+		return c
+	}
+
+	return nil
 }
 
 func (a *ConnAgent) SetData(userId int64, data interface{})  {
