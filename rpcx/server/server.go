@@ -388,7 +388,9 @@ func (s *Server) handleRequest(agent *ConnAgent, ctx context.Context, req *proto
 
 	session := NewSessionFromRpc(req.NodeId, req.SessionId, req.UserId, agent)
 	session.server = s
-	session.conn = ctx.Value(RemoteConnContextKey).(net.Conn)
+	if conn, ok := ctx.Value(RemoteConnContextKey).(net.Conn); ok {
+		session.conn = conn
+	}
 
 	res = req.Clone()
 

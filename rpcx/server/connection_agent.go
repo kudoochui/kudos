@@ -238,8 +238,9 @@ func (a *ConnAgent) RegisterTimeTick(session *ServerSession, cb TimeTickCallback
 
 // Tick every 100ms
 func (a *ConnAgent) OnTimeTick(message interface{}) {
-	msg := message.(*TimeEnvelope)
-	msg.Cb(msg.Session)
+	if msg, ok := message.(*TimeEnvelope); ok {
+		msg.Cb(msg.Session)
+	}
 }
 
 func (a *ConnAgent) InvokeSystemMessage(message interface{}) {

@@ -134,8 +134,6 @@ func (m *defaultMailbox) run() {
 		if msg = m.userMailbox.Pop(); msg != nil {
 			atomic.AddInt32(&m.userMessages, -1)
 			m.invoker.InvokeUserMessage(msg)
-		} else {
-			return
 		}
 	}
 
