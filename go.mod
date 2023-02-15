@@ -21,10 +21,11 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d
-	github.com/json-iterator/go v1.1.10
+	github.com/json-iterator/go v1.1.11
 	github.com/juju/ratelimit v1.0.1
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kavu/go_reuseport v1.5.0
@@ -34,9 +35,8 @@ require (
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/nacos-group/nacos-sdk-go v1.0.8
 	github.com/opentracing/opentracing-go v1.1.0
-	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/peterbourgon/g2s v0.0.0-20170223122336-d4e7ad98afea // indirect
-	github.com/prometheus/client_golang v1.8.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/rpcxio/libkv v0.5.0
 	github.com/rs/cors v1.8.0
@@ -44,6 +44,7 @@ require (
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 	github.com/smallnest/libkv-etcdv3-store v1.1.9
 	github.com/smallnest/quick v0.0.0-20210406061658-4bf95e372fbd
+	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/soheilhy/cmux v0.1.4
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.0
@@ -54,10 +55,11 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.3.4
 	github.com/wendal/errors v0.0.0-20181209125328-7f31f4b264ec // indirect
 	github.com/xtaci/kcp-go v4.3.4+incompatible
-	github.com/xtaci/lossyconn v0.0.0-20200209145036-adba10fffc37 // indirect
+	go.etcd.io/bbolt v1.3.3 // indirect
 	go.opencensus.io v0.22.2
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/grpc/examples v0.0.0-20210322221411-d26af8e39165 // indirect
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/protobuf v1.26.0-rc.1
 	gotest.tools v2.2.0+incompatible
 )
